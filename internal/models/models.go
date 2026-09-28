@@ -718,7 +718,7 @@ type JSPlugin struct {
 	Icon           string   `json:"icon,omitempty"`
 	UpdateURL      string   `json:"update_url,omitempty"`
 	DownloadURL    string   `json:"download_url,omitempty"`
-	// RenderEngine 插件页渲染引擎："webview" / "webf"；空串 = 跟随宿主默认（当前 webview）。
+	// RenderEngine 插件页渲染引擎："webview" / "lynx"；空串 = 跟随宿主默认（当前 webview）。
 	// 刻意不加 omitempty：客户端需要能稳定读到该字段并自行把空串映射为默认引擎。
 	RenderEngine string         `json:"render_engine"`
 	Status       JSPluginStatus `json:"status"`

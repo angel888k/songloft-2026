@@ -128,12 +128,11 @@ clients/player/lib/
 │   │       ├── plugin_tab_page.dart        # Plugin tab page (conditional import)
 │   │       ├── providers/
 │   │       │   └── home_grid_config_provider.dart
-│   │       ├── render/              # Plugin render engine (WebView / WebF)
+│   │       ├── render/              # Plugin render engine (WebView)
 │   │       │   ├── plugin_render_view.dart
 │   │       │   ├── plugin_render_controller.dart
-│   │       │   ├── plugin_render_surface_webf.dart
 │   │       │   ├── plugin_render_surface_webview.dart
-│   │       │   └── ...              # Render helpers (fonts, color scheme, file bridge, etc.)
+│   │       │   └── ...              # Render helpers (color scheme, etc.)
 │   │       └── widgets/
 │   │           ├── playlist_carousel.dart  # Playlist carousel component
 │   │           ├── hero_card.dart          # Hero card

@@ -51,7 +51,7 @@ Flutter Web 里 iframe DOM 元素按 platform view 的 `viewId` 缓存一次，�
 
 ### 3. 缓存层（铁律）：immutable 长缓存资源必须走版本化 URL
 
-CSS 改对了用户却仍抖——真凶是缓存头。`jsplugin-assets/*`（当时是 `common.css`/`common.js`，现已拆为 `theme.css` / `components.css` / `common.js` / `webf-shims.css` / `webf-shims.js`）原用**固定无版本 URL** + `Cache-Control: immutable`，浏览器连重新验证都不做，把旧文件缓存一年，修复永远到不了用户。
+CSS 改对了用户却仍抖——真凶是缓存头。`jsplugin-assets/*`（当时是 `common.css`/`common.js`，现已拆为 `theme.css` / `components.css` / `common.js`）原用**固定无版本 URL** + `Cache-Control: immutable`，浏览器连重新验证都不做，把旧文件缓存一年，修复永远到不了用户。
 
 - **通用铁律**：凡 `immutable` 长缓存的资源，**必须走内容哈希版本化 URL**（如 `?v=<sha256前8位>`），否则任何后续修改对老用户都不可达。
 - 实现：`injectHTMLHead` 给注入的每个公共资源 URL 加 `?v=<hash>`（`internal/jsplugin/routes.go` 的 `assetVersions`），承载页 HTML 为 `no-cache` 每次带出最新版本号；内容不变时 URL 恒定，长缓存照旧。新增公共资源必须同时登记进 `assetVersions`。
@@ -137,6 +137,6 @@ Android Chrome 切后台回来黑屏。
 
 ## 相关模块参考
 
-- 插件公共资源与主题桥接：`internal/jsplugin/assets/`（`theme.css` / `components.css` / `common.js` / `webf-shims.*`）、`injectHTMLHead`
+- 插件公共资源与主题桥接：`internal/jsplugin/assets/`（`theme.css` / `components.css` / `common.js`）、`injectHTMLHead`
 - 播放活动 / 预热转码：预热（prefetch）转码不应被切当前歌的 `playactivity.Activate` 取消（`Activate` 跳过 `CatPrefetch`），否则下一首预热 ffmpeg 被 SIGKILL、播放仍实时转码。
 - WebDAV 等无时长源：`song.duration=0` 会导致 miot 音箱不切歌（切歌依赖服务端 duration），导入时应探测补齐（`AddRemoteSongs` 后台限并发 `RefreshSong`）。

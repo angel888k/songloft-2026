@@ -340,12 +340,12 @@ curl -s -X POST http://127.0.0.1:3000/function \
 ## JS 插件
 
 - 源码 `plugins/src/<name>/`，构建产物在各插件仓库的 GitHub Releases
-- 新建插件：`npx create-songloft-plugin@latest`（交互式脚手架，支持 WebView / WebF / Lynx 三种渲染引擎模板，详见 `plugins/toolchain/README.md`）
+- 新建插件：`npx create-songloft-plugin@latest`（交互式脚手架，支持 WebView / Lynx 两种渲染引擎模板，详见 `plugins/toolchain/README.md`）
 - 沙盒：QuickJS。`fetch` 是运行时内置的全局函数（走 `__go_fetch_async`），`console` 系列（`songloft.log` 等）是日志包装——两者均非桥接调用。桥接由 `internal/jsplugin/api_bridge.go` 的 `HandleBridgeCall` 分发，namespace 包括：`storage`、`persistent-storage`、`songs`、`playlists`、`tags`、`comm`、`plugin`、`command`、`jsenv`、`fs`、`net`、`websocket`
 - 路由：`/api/v1/jsplugin/{entry_path}/...`
-- 公共资源：`/api/v1/jsplugin-assets/*` 提供嵌入在 Go 二进制中的 `theme.css`/`components.css`/`common.js`/字体，`injectHTMLHead` 自动注入到所有插件 HTML 页面（注入顺序：theme.css → components.css → webf-shims.css → common.js → webf-shims.js）
+- 公共资源：`/api/v1/jsplugin-assets/*` 提供嵌入在 Go 二进制中的 `theme.css`/`components.css`/`common.js`/字体，`injectHTMLHead` 自动注入到所有插件 HTML 页面（注入顺序：theme.css → components.css → common.js）
 - 主题同步：`common.js` 内含 embed 检测 + 主题桥接（URL `?theme=` 参数 + `postMessage` 实时更新 + `data-theme` 属性 + `songloft-theme-change` 事件），暴露 `window.SongloftPlugin` 全局 API（`getTheme`/`onThemeChange`/`apiGet`/`apiPost`/`getCookies` 等）
-- **客户端宿主桥接（WebView/WebF）**（`@songloft/client-sdk`，`common.js` 内含）：插件前端页面通过 `window.SongloftPlugin.host` / `player` / `getCookies` / `invokeHost` 等调用 Flutter 客户端宿主能力。native 平台走 `flutter_inappwebview.callHandler('songloftHost', {ns, method, params})`，Web/iframe 走 `postMessage` 到父窗口。分发逻辑在 `clients/player/lib/features/home/presentation/plugin_host_dispatch.dart`（传输无关、web-safe），native 桥接在 `plugin_host_bridge.dart`（mixin，注册 callHandler + 注入平台相关回调）。已注册的 namespace：`host`（getInfo）、`player`（播放控制）、`cookies`（Cookie 读取）、`favorite`（收藏状态同步，`refresh` 方法，传 `{songId, isFavorited}` 增量更新 Flutter 侧 FavoriteNotifier 缓存，不传参则全量重载）。**`window.SongloftPlugin` 的公开成员以 `common.js` 末尾那个对象字面量为唯一真实来源**——`invokeHost` 一度只存在于 `window.__SongloftInternal`（标注"插件请勿依赖"）而公开对象里没有，miot 却在自己的 `frontend/env.d.ts` 里手写了 `invokeHost?` 声明，于是 `window.SongloftPlugin?.invokeHost?.(...)` 通过 TS 编译、运行时被可选调用**静默吞掉**，收藏同步整个功能一个字节都没发出去（songloft-org/songloft-plugin-miot#86 第二次复发的根因）。**插件不要手写宿主 API 的类型声明**，用 `@songloft/client-sdk` 的 `SongloftPluginGlobal`；非要手写就先去 `common.js` 核对那个字面量
+- **客户端宿主桥接（WebView）**（`@songloft/client-sdk`，`common.js` 内含）：插件前端页面通过 `window.SongloftPlugin.host` / `player` / `getCookies` / `invokeHost` 等调用 Flutter 客户端宿主能力。native 平台走 `flutter_inappwebview.callHandler('songloftHost', {ns, method, params})`，Web/iframe 走 `postMessage` 到父窗口。分发逻辑在 `clients/player/lib/features/home/presentation/plugin_host_dispatch.dart`（传输无关、web-safe），native 桥接在 `plugin_host_bridge.dart`（mixin，注册 callHandler + 注入平台相关回调）。已注册的 namespace：`host`（getInfo）、`player`（播放控制）、`cookies`（Cookie 读取）、`favorite`（收藏状态同步，`refresh` 方法，传 `{songId, isFavorited}` 增量更新 Flutter 侧 FavoriteNotifier 缓存，不传参则全量重载）。**`window.SongloftPlugin` 的公开成员以 `common.js` 末尾那个对象字面量为唯一真实来源**——`invokeHost` 一度只存在于 `window.__SongloftInternal`（标注"插件请勿依赖"）而公开对象里没有，miot 却在自己的 `frontend/env.d.ts` 里手写了 `invokeHost?` 声明，于是 `window.SongloftPlugin?.invokeHost?.(...)` 通过 TS 编译、运行时被可选调用**静默吞掉**，收藏同步整个功能一个字节都没发出去（songloft-org/songloft-plugin-miot#86 第二次复发的根因）。**插件不要手写宿主 API 的类型声明**，用 `@songloft/client-sdk` 的 `SongloftPluginGlobal`；非要手写就先去 `common.js` 核对那个字面量
 - **Cookie 读取桥**（`window.SongloftPlugin.getCookies(origin)`）：读取宿主 WebView Cookie Store 中指定 origin 的 Cookie（含 HttpOnly），返回 `{name: value}` 映射。**仅原生客户端可用**（Android/iOS/macOS/Windows/Linux），Web 端因浏览器同源策略无法实现，调用会 reject。实现路径：`common.js getCookies()` → `invokeHost('cookies', 'get', {origin})` → Flutter `PluginHostDispatcher` → `cookieProvider` 回调 → `CookieManager.instance().getCookies(url: WebUri(origin))`。origin 必须含协议+主机（如 `https://example.com`），无效格式会被校验拒绝。典型用途：FN Connect 等第三方网关的会话复用（用户在应用内 WebView 登录后，插件读取 Cookie 用于后续 API 调用）
 - **Lynx 原生渲染桥接**（`@songloft/lynx-plugin-sdk`，`renderEngine: "lynx"` 专用）：声明 `renderEngine: "lynx"` 的插件使用 ReactLynx 编写 UI，编译为 `.lynx.bundle`，宿主通过 Lynx `<frame>` 元素原生加载。通信走 `NativeModules.SongloftPluginBridge`（三端原生模块：Android `SongloftPluginBridgeModule.kt` / iOS `SongloftPluginBridgeModule.swift` / HarmonyOS `SongloftPluginBridgeModule.ets`），按 `frameId` 路由父子 frame 间 RPC + 事件推送。SDK 提供 `invokeHost(ns, method, params)` / `onPlayerState` / `onThemeChange` / `onPush` 等 API。**不使用** `window.SongloftPlugin` / `@songloft/client-sdk`（那些是 WebView 专用）。构建时自动生成 `index.html` + `.web.bundle` 供 Flutter 客户端 WebView 回退
 - `theme.css` 定义 `--md-*` CSS 变量（亮/暗双主题）、字体声明与 reset 样式；`components.css` 提供组件库样式。所有使用这些变量的插件自动跟随主题切换
@@ -736,29 +736,3 @@ handler 无损降级为从头 `ServeFile`）。
 - `pkg/tag` 的原子写不受影响：它用 `os.CreateTemp(dir, ...)` 在源文件**同目录**创建临时文件，rename 一定同设备
 - 新增下载/缓存逻辑如果需要"先写临时文件再挪到目标位置"，**必须**用 `moveFile`，**不要**裸 `os.Rename`
 
-<!-- webf-agents:init start -->
-## WebF Claude Code Skills
-
-Source: `@openwebf/claude-code-skills@1.0.3`
-
-### Skills
-- `webf-api-compatibility` — Check Web API and CSS feature compatibility in WebF - determine what JavaScript APIs, DOM methods, CSS properties, and layout modes are supported. Use when planning features, debugging why APIs don't work, or finding alternatives for unsupported features like IndexedDB, WebGL, float layout, or CSS Grid. (`.claude/skills/webf-api-compatibility/SKILL.md`)
-- `webf-async-rendering` — Understand and work with WebF's async rendering model - handle onscreen/offscreen events and element measurements correctly. Use when getBoundingClientRect returns zeros, computed styles are incorrect, measurements fail, or elements don't layout as expected. (`.claude/skills/webf-async-rendering/SKILL.md`)
-- `webf-infinite-scrolling` — Create high-performance infinite scrolling lists with pull-to-refresh and load-more capabilities using WebFListView. Use when building feed-style UIs, product catalogs, chat messages, or any scrollable list that needs optimal performance with large datasets. (`.claude/skills/webf-infinite-scrolling/SKILL.md`)
-- `webf-native-plugin-dev` — Develop custom WebF native plugins based on Flutter packages. Create reusable plugins that wrap Flutter/platform capabilities as JavaScript APIs. Use when building plugins for native features like camera, payments, sensors, file access, or wrapping existing Flutter packages. (`.claude/skills/webf-native-plugin-dev/SKILL.md`)
-- `webf-native-plugins` — Install WebF native plugins to access platform capabilities like sharing, payment, camera, geolocation, and more. Use when building features that require native device APIs beyond standard web APIs. (`.claude/skills/webf-native-plugins/SKILL.md`)
-- `webf-native-ui` — Setup and use WebF's Cupertino UI library to build native iOS-style UIs with pre-built components instead of crafting everything with HTML/CSS. Use when building iOS apps, adding native UI components, or improving UI performance. (`.claude/skills/webf-native-ui/SKILL.md`)
-- `webf-native-ui-dev` — Develop custom native UI libraries based on Flutter widgets for WebF. Create reusable component libraries that wrap Flutter widgets as web-accessible custom elements. Use when building UI libraries, wrapping Flutter packages, or creating native component systems. (`.claude/skills/webf-native-ui-dev/SKILL.md`)
-- `webf-quickstart` — Get started with WebF development - setup WebF Go, create a React/Vue/Svelte project with Vite, and load your first app. Use when starting a new WebF project, onboarding new developers, or setting up development environment. (`.claude/skills/webf-quickstart/SKILL.md`)
-- `webf-routing-setup` — Setup hybrid routing with native screen transitions in WebF - configure navigation using WebF routing instead of SPA routing. Use when setting up navigation, implementing multi-screen apps, or when react-router-dom/vue-router doesn't work as expected. (`.claude/skills/webf-routing-setup/SKILL.md`)
-
-### References
-- `webf-api-compatibility`: `.claude/skills/webf-api-compatibility/alternatives.md`, `.claude/skills/webf-api-compatibility/reference.md`
-- `webf-async-rendering`: `.claude/skills/webf-async-rendering/examples.md`
-- `webf-infinite-scrolling`: `.claude/skills/webf-infinite-scrolling/examples.md`
-- `webf-native-plugins`: `.claude/skills/webf-native-plugins/reference.md`
-- `webf-native-ui`: `.claude/skills/webf-native-ui/reference.md`
-- `webf-native-ui-dev`: `.claude/skills/webf-native-ui-dev/example-input.md`, `.claude/skills/webf-native-ui-dev/typescript-guide.md`
-- `webf-quickstart`: `.claude/skills/webf-quickstart/reference.md`
-- `webf-routing-setup`: `.claude/skills/webf-routing-setup/cross-platform.md`, `.claude/skills/webf-routing-setup/examples.md`
-<!-- webf-agents:init end -->

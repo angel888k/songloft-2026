@@ -11,14 +11,15 @@ import (
 // TestIsValidRenderEngine 覆盖 renderEngine 的合法与非法取值。
 // 空串必须合法：语义是「跟随宿主默认」，绝大多数插件不写这个字段。
 func TestIsValidRenderEngine(t *testing.T) {
-	valid := []string{"", RenderEngineWebView, RenderEngineWebF, RenderEngineLynx}
+	valid := []string{"", RenderEngineWebView, RenderEngineLynx}
 	for _, v := range valid {
 		if !IsValidRenderEngine(v) {
 			t.Errorf("IsValidRenderEngine(%q) = false, want true", v)
 		}
 	}
 
-	invalid := []string{"WebView", "WEBF", "web_view", "webkit", "flutter", " webf", "webf "}
+	// "webf" 已废弃：客户端移除 WebF 渲染面后，该值必须被拒绝而非静默落库
+	invalid := []string{"WebView", "webf", "WEBF", "web_view", "webkit", "flutter", " webf", "webf "}
 	for _, v := range invalid {
 		if IsValidRenderEngine(v) {
 			t.Errorf("IsValidRenderEngine(%q) = true, want false", v)
@@ -30,7 +31,7 @@ func TestIsValidRenderEngine(t *testing.T) {
 // 且非法取值的错误信息里必须带上实际收到的值（否则排查插件打包问题只能猜）。
 func TestValidateManifest_RenderEngine(t *testing.T) {
 	// 合法取值（含缺省）
-	for _, v := range []string{"", RenderEngineWebView, RenderEngineWebF, RenderEngineLynx} {
+	for _, v := range []string{"", RenderEngineWebView, RenderEngineLynx} {
 		m := testManifest("demo")
 		m.RenderEngine = v
 		// entryHash / zipHash 是必填项，这里只关心 renderEngine，故补上占位合法 hash。
@@ -65,8 +66,8 @@ func TestInstall_PersistsRenderEngine(t *testing.T) {
 	pm := NewPackageManager(pluginsDir, dataDir, repo)
 	ctx := context.Background()
 
-	manifest := testManifest("webf-demo")
-	manifest.RenderEngine = RenderEngineWebF
+	manifest := testManifest("engine-demo")
+	manifest.RenderEngine = RenderEngineLynx
 	zipData := createTestPluginZip(t, manifest, simpleJSCode)
 
 	installed, wasUpdate, err := pm.InstallFromUpload(zipData)
@@ -76,16 +77,32 @@ func TestInstall_PersistsRenderEngine(t *testing.T) {
 	if wasUpdate {
 		t.Fatal("expected fresh install, got update")
 	}
-	if installed.RenderEngine != RenderEngineWebF {
-		t.Errorf("returned plugin render engine = %q, want %q", installed.RenderEngine, RenderEngineWebF)
+	if installed.RenderEngine != RenderEngineLynx {
+		t.Errorf("returned plugin render engine = %q, want %q", installed.RenderEngine, RenderEngineLynx)
 	}
 
-	fromDB, err := repo.GetByEntryPath(ctx, "webf-demo")
+	fromDB, err := repo.GetByEntryPath(ctx, "engine-demo")
 	if err != nil {
 		t.Fatalf("GetByEntryPath: %v", err)
 	}
-	if fromDB.RenderEngine != RenderEngineWebF {
-		t.Errorf("DB render engine = %q, want %q", fromDB.RenderEngine, RenderEngineWebF)
+	if fromDB.RenderEngine != RenderEngineLynx {
+		t.Errorf("DB render engine = %q, want %q", fromDB.RenderEngine, RenderEngineLynx)
+	}
+}
+
+// TestInstall_RejectsWebF 声明已废弃的 "webf" 必须在安装期被拒绝：
+// 客户端已移除 WebF 渲染面，静默落库只会制造一个从未生效的声明。
+func TestInstall_RejectsWebF(t *testing.T) {
+	manifest := testManifest("webf-demo")
+	manifest.RenderEngine = "webf"
+	manifest.EntryHash = strings.Repeat("a", 64)
+	manifest.ZipHash = strings.Repeat("b", 64)
+	err := ValidateManifest(manifest)
+	if err == nil {
+		t.Fatal("expected error for renderEngine=webf, got nil")
+	}
+	if !strings.Contains(err.Error(), "webf") {
+		t.Errorf("error must include the offending value, got: %v", err)
 	}
 }
 
@@ -111,14 +128,14 @@ func TestInstall_DefaultRenderEngineIsEmpty(t *testing.T) {
 }
 
 // TestUpdate_PersistsRenderEngineChange 验证升级插件（代码变了，zipHash 变了）时
-// 新 manifest 的 renderEngine 会覆盖旧值——包括「从 webf 改回 webview」这个方向。
+// 新 manifest 的 renderEngine 会覆盖旧值——包括「从 lynx 改回 webview」这个方向。
 func TestUpdate_PersistsRenderEngineChange(t *testing.T) {
 	pluginsDir, dataDir, repo, _ := setupTestEnv(t)
 	pm := NewPackageManager(pluginsDir, dataDir, repo)
 	ctx := context.Background()
 
 	first := testManifest("switch-demo")
-	first.RenderEngine = RenderEngineWebF
+	first.RenderEngine = RenderEngineLynx
 	installed, _, err := pm.InstallFromUpload(createTestPluginZip(t, first, simpleJSCode))
 	if err != nil {
 		t.Fatalf("InstallFromUpload: %v", err)
@@ -154,7 +171,7 @@ func TestSyncFromDirectory_PersistsRenderEngine(t *testing.T) {
 
 	zipPath := filepath.Join(pluginsDir, "disk-demo.jsplugin.zip")
 	first := testManifest("disk-demo")
-	first.RenderEngine = RenderEngineWebF
+	first.RenderEngine = RenderEngineLynx
 	if err := os.WriteFile(zipPath, createTestPluginZip(t, first, simpleJSCode), 0o644); err != nil {
 		t.Fatalf("write zip: %v", err)
 	}
@@ -166,8 +183,8 @@ func TestSyncFromDirectory_PersistsRenderEngine(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetByEntryPath: %v", err)
 	}
-	if fromDB.RenderEngine != RenderEngineWebF {
-		t.Fatalf("after first sync render engine = %q, want %q", fromDB.RenderEngine, RenderEngineWebF)
+	if fromDB.RenderEngine != RenderEngineLynx {
+		t.Fatalf("after first sync render engine = %q, want %q", fromDB.RenderEngine, RenderEngineLynx)
 	}
 
 	// 只改 plugin.json 的 renderEngine，JS 代码与 static 一字不动 → zipHash 不变

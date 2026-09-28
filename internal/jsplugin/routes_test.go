@@ -15,9 +15,9 @@ import (
 func TestInjectHTMLHeadAssetVersioning(t *testing.T) {
 	out := string(injectHTMLHead([]byte("<head></head><body></body>"), "demo", ""))
 
-	// 五个公共资源（theme.css / components.css / common.js / webf-shims.css /
-	// webf-shims.js）均应带 ?v=<8位hex>，且版本号与嵌入内容哈希一致。
-	for _, name := range []string{"theme.css", "components.css", "common.js", "webf-shims.css", "webf-shims.js"} {
+	// 三个公共资源（theme.css / components.css / common.js）均应带 ?v=<8位hex>，
+	// 且版本号与嵌入内容哈希一致。
+	for _, name := range []string{"theme.css", "components.css", "common.js"} {
 		re := regexp.MustCompile(regexp.QuoteMeta(name) + `\?v=[0-9a-f]{8}"`)
 		if !re.MatchString(out) {
 			t.Errorf("注入的 %s 缺少版本号 (?v=hash)，实际输出:\n%s", name, out)

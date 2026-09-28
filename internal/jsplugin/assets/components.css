@@ -9,7 +9,7 @@
  *   · .snackbar / .dialog     ← SnackBarTheme / M3 Dialog
  * 颜色全部走 theme.css 的 `--md-*` 令牌，故自动跟随主题切换。
  *
- * ⚠️ WebF 约束（本层是要在 WebF 渲染面跑的）：禁用 color-mix() / max() / min() /
+ * ⚠️ 兼容性约束：禁用 color-mix() / max() / min() /
  * env()；开关把手位移用 transform: translateX；选中态用 `~` 兄弟选择器。 */
 
 /* ── AppBar ── */
@@ -102,7 +102,7 @@
     color: var(--md-primary);
     padding: 0 12px;
 }
-/* 涟漪底色跟着 --md-primary 走。CSS 里无法从 hex 变量算 rgba（WebF 也没有
+/* 涟漪底色跟着 --md-primary 走。CSS 里无法从 hex 变量算 rgba（也没有
  * color-mix），只能写字面量 = 当前 primary 的 RGB。**改 primary 兜底值时这两条
  * 要一起改**。下推真实 ColorScheme 后 primary 会变、这两条跟不上，属已知取舍：
  * 涟漪只是 8%/12% 的浅色叠加，跑偏也看不出来。 */
@@ -247,15 +247,14 @@ html[data-theme="dark"] .btn-icon:hover {
 
 /* ── Snackbar ── 对齐 SnackBarTheme（floating + sm 圆角 + inverseSurface）。
  *
- * ⚠️ **不用 transform 定位/动画**：WebF **不对 `position: fixed` 元素应用 transform**
- * （docs/webf/handoff.md webf-ui 事实第 8 条实测），旧写法 `left:50% + translateX(-50%)`
- * 在 WebF 下会让 snackbar 停在 left:50%（左缘居中、右溢出）、且无入场动画。改为：
+ * ⚠️ **不用 transform 定位/动画**：旧写法 `left:50% + translateX(-50%)` 对
+ * fixed 元素的组合行为没有跨环境契约。改为：
  *   · 居中：`left:0; right:0; margin:0 auto; width:fit-content`（标准 abs 居中，不碰
  *     transform）。fixed 的包含块是视口、宽度确定，`margin:auto` 能解析。
- *   · 降级：万一 WebF 不认 `fit-content` → 退回 `width:auto` 铺满成底部横条，`text-align:
+ *   · 降级：万一 `fit-content` 不被认 → 退回 `width:auto` 铺满成底部横条，`text-align:
  *     center` 保证文字仍居中可读（不会跑到屏外）。
- *   · 动画：用 `opacity` 而非 transform（fixed 上 transform 无效）。
- * `max-width` 用 calc（WebF 支持）不用 min()（WebF 不支持）。 */
+ *   · 动画：用 `opacity` 而非 transform。
+ * `max-width` 用 calc 不用 min()。 */
 .snackbar {
     position: fixed;
     bottom: 16px;
@@ -284,14 +283,12 @@ html[data-theme="dark"] .btn-icon:hover {
 /* ── Switch ──
  * 结构：<label class="switch"><input type=checkbox><span.switch-track><span.switch-thumb></label>
  *
- * ⚠️ 三条写法刻意对齐已在 WebF 上验证可用的写法，别改回「看起来更简单」的旧写法：
+ * ⚠️ 三条写法是经多个插件真机验证的组合，别改回「看起来更简单」的旧写法：
  *   ① `display: inline-block` + `flex-shrink: 0` —— 少了它，开关放进
- *      `display:flex; justify-content:space-between` 的设置行里会被 flex 压缩，
- *      而 WebF 的 flex base-size 测量有缺陷，52px 轨道被挤窄、绝对定位的把手
- *      `left` 一算就溢出/错位（songloft-org/songloft#341）。
- *   ② 把手位移用 `transform: translateX(20px)` 而不是改 `left` —— WebF 已验证路径。
- *   ③ 选中态一律用 `~`（通用兄弟）而不是 `+`：`<input>` 在 WebF 里是原生
- *      WidgetElement，`+` 匹配不如 `~` 稳。 */
+ *      `display:flex; justify-content:space-between` 的设置行里会被 flex 压缩
+ *      （songloft-org/songloft#341）。
+ *   ② 把手位移用 `transform: translateX(20px)` 而不是改 `left`。
+ *   ③ 选中态一律用 `~`（通用兄弟）而不是 `+`，匹配行为更稳。 */
 .switch {
     position: relative;
     display: inline-block;

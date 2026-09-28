@@ -128,12 +128,11 @@ clients/player/lib/
 │   │       ├── plugin_tab_page.dart        # 插件 Tab 页面（条件导入）
 │   │       ├── providers/
 │   │       │   └── home_grid_config_provider.dart
-│   │       ├── render/              # 插件渲染引擎（WebView / WebF）
+│   │       ├── render/              # 插件渲染引擎（WebView）
 │   │       │   ├── plugin_render_view.dart
 │   │       │   ├── plugin_render_controller.dart
-│   │       │   ├── plugin_render_surface_webf.dart
 │   │       │   ├── plugin_render_surface_webview.dart
-│   │       │   └── ...              # 渲染辅助（字体、配色、文件桥接等）
+│   │       │   └── ...              # 渲染辅助（配色等）
 │   │       └── widgets/
 │   │           ├── playlist_carousel.dart  # 歌单轮播组件
 │   │           ├── hero_card.dart          # Hero 卡片

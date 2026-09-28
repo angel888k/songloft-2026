@@ -857,7 +857,7 @@ const docTemplate = `{
         },
         "/jsplugin-assets/{path}": {
             "get": {
-                "description": "服务由主程序嵌入的插件公共资源（theme.css / components.css / common.js / webf-shims.css / webf-shims.js 及字体），自动注入到所有插件 HTML 页面。",
+                "description": "服务由主程序嵌入的插件公共资源（theme.css / components.css / common.js 及字体），自动注入到所有插件 HTML 页面。",
                 "produces": [
                     "application/octet-stream"
                 ],
@@ -1420,7 +1420,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "获取 JS 插件列表，形如 {\"plugins\": [jsplugin.JSPlugin, ...]}（响应类型是 map，\n单个插件对象的完整字段见 jsplugin.JSPlugin 定义）。\n其中 render_engine 是插件在自己 plugin.json 的 renderEngine 字段里声明的页面渲染引擎，\n取值 \"webview\"（系统 WebView）或 \"webf\"；**空串表示跟随宿主默认**，客户端需自行映射为 webview。",
+                "description": "获取 JS 插件列表，形如 {\"plugins\": [jsplugin.JSPlugin, ...]}（响应类型是 map，\n单个插件对象的完整字段见 jsplugin.JSPlugin 定义）。\n其中 render_engine 是插件在自己 plugin.json 的 renderEngine 字段里声明的页面渲染引擎，\n取值 \"webview\"（系统 WebView）或 \"lynx\"（Lynx 原生渲染）；**空串表示跟随宿主默认**，客户端需自行映射为 webview。",
                 "consumes": [
                     "application/json"
                 ],
@@ -10851,7 +10851,7 @@ const docTemplate = `{
                     }
                 },
                 "render_engine": {
-                    "description": "RenderEngine 插件页渲染引擎：\"webview\" / \"webf\"；空串 = 跟随宿主默认（当前 webview）。\n刻意不加 omitempty：客户端需要能稳定读到该字段并自行把空串映射为默认引擎。",
+                    "description": "RenderEngine 插件页渲染引擎：\"webview\" / \"lynx\"；空串 = 跟随宿主默认（当前 webview）。\n刻意不加 omitempty：客户端需要能稳定读到该字段并自行把空串映射为默认引擎。",
                     "type": "string"
                 },
                 "status": {

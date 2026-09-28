@@ -1,18 +1,9 @@
 /**
  * Songloft Plugin Common JS — 由主程序自动注入到所有插件 HTML 页面
  * 职责：embed 检测、主题桥接、API 工具、宿主桥接、a11y（window.SongloftPlugin）
- *
- * WebF 引擎能力垫片（details / range 滑块 / file 选择器 / table / 空 img src /
- * 安全区）已抽离到 **webf-shims.js**，本文件只保留全环境通用的运行时核心。
- * 两个文件共享的内部句柄经 `window.__SongloftInternal` 传递（非公开 API）。
  */
 (function() {
     'use strict';
-
-    // WebF 引擎探测（主题落地的 forceNestedStyleRecalc 依赖它；函数声明会提升）。
-    function isWebFEngine() {
-        return !!window.webf;
-    }
 
     // ── Embed 检测 ──
     if (new URLSearchParams(window.location.search).has('embed')) {
@@ -25,26 +16,20 @@
 
     function applyTheme(th) {
         var d = document.documentElement;
-        // 用 setAttribute 而不是 d.dataset.theme：本脚本是 <head> 内的阻塞脚本，
-        // 在 WebF 里此刻 documentElement.dataset 还是 null，赋值会抛
-        // TypeError，而它会**中断整个 IIFE** —— window.SongloftPlugin 压根不会
+        // 用 setAttribute 而不是 d.dataset.theme：阻塞脚本执行期 dataset 的可用性
+        // 没有跨环境契约，赋值一旦抛 TypeError 会**中断整个 IIFE** ——
+        // window.SongloftPlugin 压根不会
         // 定义，宿主桥连带全废（songloft-org/songloft#341 实测）。
         // setAttribute 语义等价，且不依赖 dataset 何时就绪。
         d.setAttribute('data-theme', th);
         d.classList.remove('theme-light', 'theme-dark');
         d.classList.add('theme-' + th);
         localStorage.setItem('songloft-theme', th);
-        // 亮暗色值在 theme.css 里是靠 `html[data-theme="dark"]` 覆盖 `:root` 的，
-        // 而 WebF 改完根节点的变量**不会**让后代重新求值（根因详见
-        // forceNestedStyleRecalc 的注释）。不补这一下，WebF 里切主题只会改到 `<html>`
-        // 自己，整页停在加载那一刻的配色。
-        forceNestedStyleRecalc();
         document.dispatchEvent(new CustomEvent('songloft-theme-change', { detail: { theme: th } }));
     }
 
     // 刻意包 try/catch：本文件是一个 IIFE，任何早期异常都会中断其余全部代码，
-    // 包括最后那段 window.SongloftPlugin 的定义 —— 表现是宿主桥整体静默失效，
-    // 极难归因（songloft-org/songloft#341 就踩过：dataset 在 WebF 里为 null）。
+    // 包括最后那段 window.SongloftPlugin 的定义 —— 表现是宿主桥整体静默失效，极难归因。
     // 主题失效只是外观问题，不该连带打掉插件的宿主能力。
     try {
         applyTheme(initialTheme);
@@ -73,17 +58,14 @@
     // 亮色」的错色闪烁。
     //
     // ⚠️ 插件想用 **JS** 读色必须调 `SongloftPlugin.getColorScheme()`，不能读 CSS：
-    // WebF 的 `getComputedStyle` 对自定义属性一律返回空串，而 `<flutter-cupertino-*>`
+    // `getComputedStyle` 对自定义属性不一定返回解析值，而宿主原生控件
     // 的属性值也不展开 `var()`、只吃字面 hex。
     //
     // **色板必须像 `songloft-theme`（亮暗）一样持久化到 localStorage 并在加载时恢复**
     // （songloft-org/songloft#341）。宿主的色板下推是一条 **fire-and-forget** 的
-    // `window.postMessage`，没有回执。WebF 下二次进入插件页时页面是**全新加载**
-    // （桌面端 Tab 切走即销毁 controller），而它的就绪信号是 `onBuildSuccess` 而非
-    // 真正的 `load` 事件（第二次挂载 `onLoad` 根本不来）—— 这条推送可能早于本脚本
-    // 注册 `message` 监听器而被静默丢弃，于是页面永久停在 `theme.css` 的**默认 seed
-    // 静态兜底色**，而不是用户自定义 ThemePack 的颜色。表现正是「首次进入主题对、
-    // 切走再进就丢了主题」。
+    // `window.postMessage`，没有回执；页面加载早于本脚本注册 `message` 监听器时，
+    // 推送会被静默丢弃，页面就会停在 `theme.css` 的**默认 seed 静态兜底色**，
+    // 而不是用户自定义 ThemePack 的颜色。
     //
     // 恢复上一次的色板让页面**自给自足**、不再依赖推送时序：宿主推送退化为「运行中
     // 切主题」时的更新（去重后按需重推），加载首帧则直接用持久化的真实色板 ——
@@ -119,43 +101,6 @@
 
     var HEX_RE = /^#[0-9a-fA-F]{6}$/;
 
-    // ── WebF：改完根变量必须强制一次「带后代」的样式重算 ────────────────────
-    //
-    // **WebF 下运行时改 `<html>` 上的 CSS 变量，后代不会重新求值。** 这是 WebF
-    // 0.24.27 的缺陷，读源码确证，两条路都断：
-    //
-    //   ① `css/variable.dart:191` 的 `setCSSVariable` 只通知**本元素自己**的
-    //      `_propertyDependencies`，**没有向后代遍历**；
-    //   ② 走 CSS 规则那条（`setAttribute('data-theme','dark')`）本该由
-    //      `recalculateStyle(rebuildNested: true)` 递归后代，但批量刷时被
-    //      `_shouldBatchRecalculateStyle` 分支整个丢掉，只 markElementStyleDirty，
-    //      而 document 只在 reason 以 `childList-` 开头时才登记 rebuildNested。
-    //
-    // 症状：页面加载时色板对（首次样式解析带着正确值），此后**任何**主题切换都只
-    // 改到 `<html>` 自己——整页停在加载那一刻的亮/暗，而原生 WidgetElement
-    // （`<flutter-cupertino-input>` 等）跟着 Flutter 真实主题走 → 一半亮一半暗。
-    //
-    // 唯一能拿到 rebuildNested 的入口是 **childList 变更**。所以往 `<body>` 里插一个
-    // 空 span 再立刻摘掉：两次变更把 body 标成「带后代重算」，body 子树因此重新解析
-    // `var()`，从 html 的 renderStyle 上读到新值。同步完成、不绘制、无视觉副作用。
-    //
-    // **必须是 `<body>`，不能是 `documentElement`**：WebF 明确把 HTMLElement/HeadElement
-    // 排除在 childList 标脏之外，poke 根节点等于什么都没做。
-    // 只在 WebF 下做：浏览器 / 系统 WebView 的变量继承本来就是对的。
-    function forceNestedStyleRecalc() {
-        if (!isWebFEngine()) return;
-        var body = document.body;
-        if (!body || typeof document.createElement !== 'function') return;
-        try {
-            var probe = document.createElement('span');
-            body.appendChild(probe);
-            body.removeChild(probe);
-        } catch (e) {
-            // 拿不到 body（<head> 阻塞脚本期）或插入被拒：此时页面还没样式化，
-            // 首次解析自然会带上正确的值，不需要补救。
-        }
-    }
-
     function applyColorScheme(colors) {
         if (!colors || typeof colors !== 'object') return;
         lastColorScheme = colors;
@@ -186,13 +131,12 @@
         }
         // 必须在派发事件**之前**：插件的监听器可能会去量元素（如按新底色重算控件配色），
         // 那时布局/样式应当已经是新的。
-        forceNestedStyleRecalc();
         document.dispatchEvent(new CustomEvent('songloft-color-scheme-change', {
             detail: { colors: colors }
         }));
     }
 
-    // 色板的 ready 相补写（三条下推链路都要用，故独立于 webf-shims 的 ready 注册表）。
+    // 色板的 ready 相补写。
     function applyColorSchemeOnReady() {
         if (lastColorScheme) applyColorScheme(lastColorScheme);
     }
@@ -203,7 +147,6 @@
     }
 
     // ── 宿主消息通道 ──
-    // 注：`songloft-safe-area`（WebF-only）由 webf-shims.js 自己监听，不在这里。
     window.addEventListener('message', function(e) {
         if (!e.data || !e.data.type) return;
         if (e.data.type === 'songloft-theme' && (e.data.theme === 'light' || e.data.theme === 'dark')) {
@@ -339,23 +282,20 @@
     /**
      * Blob → `data:` URL（songloft-org/songloft#341）。
      *
-     * 存在的理由：**WebF 没有 `URL.createObjectURL`**，而「带鉴权头 fetch 一张图 →
-     * 显示」是插件常见写法（fetch 拿到的是 Blob，`<img src>` 不能直接吃 Blob）。
-     * 也不可能给 WebF 垫一个返回 `blob:` 的 createObjectURL：它的资源加载器只认
-     * http/https/assets/file/`data:`。而 `data:` URL 原生支持且确实能画出来。
+     * 「带鉴权头 fetch 一张图 → 显示」是插件常见写法（fetch 拿到的是 Blob，
+     * `<img src>` 不能直接吃 Blob），转成 `data:` URL 即可嵌入。
      *
      * ⚠️ **本函数是异步的，而 `createObjectURL` 是同步的** —— blob → base64 只能经
      * `arrayBuffer()` / `FileReader`（都是异步）。所以插件**必须改调用点**。
-     * 实现选 `blob.arrayBuffer()`：WebF 里 `FileReader` 不存在，而
-     * `Blob.prototype.arrayBuffer` 在（浏览器/系统 WebView 亦然，三路共用一份）。
+     * 实现选 `blob.arrayBuffer()`（各环境通用）。
      *
-     * ⚠️⚠️ **刻意不用 `btoa`，自带 base64 编码表。** WebF 的 `btoa` 不是二进制安全的：
-     * 它把 > 0x7F 的码点当字符先做了一次 UTF-8 编码，不仅值错还静默丢字节
-     * （256 字节里 0xC1..0xFF 共 63 个被丢）。`atob` 方向是正确的，故只需自己实现
-     * encode 方向。分块处理（3 字节一组、每 8 KB 拼一次）避免 RangeError 与 O(n²)。
+     * ⚠️⚠️ **刻意不用 `btoa`，自带 base64 编码表。** 部分 btoa 实现不是二进制安全的：
+     * 它把 > 0x7F 的码点当字符先做了一次 UTF-8 编码，不仅值错还静默丢字节。
+     * `atob` 方向是正确的，故只需自己实现 encode 方向。
+     * 分块处理（3 字节一组、每 8 KB 拼一次）避免 RangeError 与 O(n²)。
      *
      * @param {Blob} blob
-     * @param {string} [mimeType] 覆盖 blob.type（WebF 下 blob.type 恒为空串）
+     * @param {string} [mimeType] 覆盖 blob.type（部分环境 blob.type 恒为空串）
      * @returns {Promise<string>} 形如 `data:image/jpeg;base64,...`
      */
     var B64_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
@@ -419,7 +359,7 @@
      * @returns {'light' | 'dark'}
      */
     function getTheme() {
-        // 与 applyTheme 对称，不走 dataset（WebF 早期为 null，见 applyTheme 注释）
+        // 与 applyTheme 对称，不走 dataset（见 applyTheme 注释）
         return document.documentElement.getAttribute('data-theme') || 'light';
     }
 
@@ -437,8 +377,8 @@
      * 宿主真实色板。key 是 Flutter `ColorScheme` 的字段名（camelCase），
      * 值是 `#RRGGBB`，例如 `{primary: '#415F91', surfaceContainer: '#EDEDF4', ...}`。
      *
-     * **这是插件用 JS 读色的唯一正确途径** —— WebF 的 `getComputedStyle` 对自定义
-     * 属性一律返回空串；而 `<flutter-cupertino-*>` 的属性值不展开 `var()`，只吃字面 hex。
+     * **这是插件用 JS 读色的唯一正确途径** —— `getComputedStyle` 对自定义属性的
+     * 支持没有跨环境契约，直接读 CSS 变量不可靠。
      *
      * 宿主还没推到时返回 `null`，此时页面用的是 `theme.css` 的静态兜底色。想在到达
      * 时收到通知就监听 `document` 上的 `songloft-color-scheme-change` 事件，或用
@@ -528,14 +468,6 @@
             typeof window.flutter_inappwebview.callHandler === 'function');
     }
 
-    // WebF 渲染引擎（songloft-org/songloft#341）：既没有 flutter_inappwebview，
-    // 也不是 iframe（WebF 无 iframe 实现，window.parent === window），所以必须
-    // 单独探测。走 WebF 自带的 methodChannel，语义与 callHandler 近乎一对一。
-    function isWebFHost() {
-        return !!(window.webf && window.webf.methodChannel &&
-            typeof window.webf.methodChannel.invokeMethod === 'function');
-    }
-
     // Web：插件页运行在宿主 iframe 内，走 postMessage 与父窗口通信。
     // 独立浏览器标签（parent === self）没有宿主，返回 false。
     function isIframeHost() {
@@ -547,7 +479,7 @@
     }
 
     function isHostAvailable() {
-        return isWebFHost() || isNativeHost() || isIframeHost();
+        return isNativeHost() || isIframeHost();
     }
 
     // ── Web/iframe postMessage 传输：请求/响应关联 ──
@@ -578,82 +510,12 @@
         else p.reject(new Error(msg.error || 'songloft host call failed'));
     }
 
-    // ── WebF methodChannel 传输 ──
-    //
-    // 请求体与响应体两端都是 JSON 字符串：WebF 的 method channel 对复杂对象的
-    // 序列化形态没有稳定契约，字符串是唯一两端都确定的载体。响应侧对 string
-    // 与 object 都做兼容，不假定其中一种。
-    function invokeViaWebF(ns, method, params) {
-        return window.webf.methodChannel
-            .invokeMethod(HOST_HANDLER, JSON.stringify({ ns: ns, method: method, params: params || null }))
-            .then(function(res) {
-                var parsed = res;
-                if (typeof parsed === 'string') {
-                    try { parsed = JSON.parse(parsed); } catch (e) { parsed = null; }
-                }
-                if (parsed && parsed.ok) return parsed.data;
-                throw new Error((parsed && parsed.error) || 'songloft host call failed');
-            });
-    }
-
-    // 插件注册的「页面内返回」处理器，见 SongloftPlugin.onHostBack。
-    var pluginBackHandler = null;
-
-    /**
-     * 注册「页面内返回」处理器：宿主的返回键（Android 硬件键 / 全屏页 AppBar 的
-     * 返回箭头）会**先**问这里，返回 `true` 表示已消费，宿主就不退出路由 / 不退出应用。
-     *
-     * 用途是插件内部有多级页面（如「主页 → 设置页」）时，让返回键先退回上一级。
-     *
-     * ⚠️ **不要为此去用 `history.pushState`**。WebF 不实现 SPA history 路由，
-     * `pushState` 之后 `history.length > 1` 会让下面那条兜底判断误报「已消费」，
-     * 而 WebF 又不 fire `popstate` —— 页面毫无变化，**返回键变成死键**。
-     *
-     * ⚠️ 只对 **WebF** 渲染的插件页生效（`registerWebFBackHandler` 有
-     * `isWebFHost()` 闸门）。系统 WebView / iframe / 浏览器走各自 `canGoBack()`。
-     *
-     * @param {() => boolean} fn 返回 true 表示本次返回已被页面消费
-     */
-    function onHostBack(fn) {
-        pluginBackHandler = typeof fn === 'function' ? fn : null;
-    }
-
-    // 宿主请求页面回退（songloft-org/songloft#341）。
-    // WebF 侧没有 canGoBack，宿主无法自行判断页面内还有没有历史，只能问页面。
-    // 只在 WebF 下注册：另外两条链路的宿主用各自 webview 的 canGoBack。
-    function registerWebFBackHandler() {
-        if (!isWebFHost()) return;
-        var mc = window.webf.methodChannel;
-        if (typeof mc.addMethodCallHandler !== 'function') return;
-        mc.addMethodCallHandler('requestBack', function() {
-            // 插件的页面内层级优先于浏览历史。try/catch 是必须的：插件回调抛异常
-            // 不能把返回键卡死（那会让用户既回不去也退不出），出错就当没消费。
-            if (pluginBackHandler) {
-                try {
-                    if (pluginBackHandler() === true) return true;
-                } catch (err) {
-                    console.warn('[songloft] onHostBack handler failed:', err);
-                }
-            }
-            if (window.history && window.history.length > 1) {
-                window.history.back();
-                return true;
-            }
-            return false;
-        });
-    }
-
-    registerWebFBackHandler();
-
     /**
      * 调用宿主能力。约定返回 { ok, data } 或 { ok:false, error }。
-     * WebF 走 methodChannel，native 走 callHandler，Web/iframe 走 postMessage 关联。
+     * native 走 callHandler，Web/iframe 走 postMessage 关联。
      * @returns {Promise<any>}
      */
     function invokeHost(ns, method, params) {
-        if (isWebFHost()) {
-            return invokeViaWebF(ns, method, params);
-        }
         if (isNativeHost()) {
             return window.flutter_inappwebview
                 .callHandler(HOST_HANDLER, { ns: ns, method: method, params: params || null })
@@ -758,24 +620,11 @@
         getTheme: getTheme,
         onThemeChange: onThemeChange,
         getColorScheme: getColorScheme,
-        onHostBack: onHostBack,
-        // 插件如果**自己**在运行时改 `<html>` 上的 CSS 变量（自定义配色、密度开关等），
-        // 改完必须调这个，否则在 WebF 下后代一个都不会重新求值 —— 根因见
-        // forceNestedStyleRecalc 的注释。非 WebF 下是空操作，可以无条件调。
-        forceStyleRecalc: forceNestedStyleRecalc,
-        // Blob → data: URL。WebF 没有 URL.createObjectURL，见函数上方注释。
-        // 三条渲染路径共用同一份实现（浏览器/WebView 下同样可用），插件不必分叉。
+        // Blob → data: URL（浏览器 / WebView 通用）。
         blobToDataURL: blobToDataURL,
-        // WebF 下 input[type=file] 垫片最近一次选到的文件数组（每项
-        // {name, size, text?, bytesBase64?}）。由 webf-shims.js 回填；未选过时为 null。
-        lastPickedFiles: null,
         announce: announce,
         hideDecorationIcons: hideDecorationIcons,
         enhanceClickableElements: enhanceClickableElements,
-        // 重跑 WebF 垫片的 ready 段（插件用 innerHTML 动态插入内容后调用）。
-        // 由 webf-shims.js 覆盖为真正实现；未加载 webf-shims 时是安全空操作。
-        // 幂等，且在浏览器 / 系统 WebView 下是彻底的 no-op。
-        applyShims: function() {},
         host: host,
         player: player,
         favorite: favorite,
@@ -787,12 +636,5 @@
         // ⚠️ 没有 wrapper 的那层类型约束：ns / method 拼错只会在运行时 reject。
         // 有对应 wrapper 时优先用 wrapper。
         invokeHost: invokeHost
-    };
-
-    // 供 webf-shims.js 复用的内部句柄（**非公开 API**，插件请勿依赖）。
-    // 这样宿主桥 / 样式重算逻辑只此一份，不必在垫片文件里重复实现。
-    window.__SongloftInternal = {
-        invokeHost: invokeHost,
-        forceStyleRecalc: forceNestedStyleRecalc
     };
 })();

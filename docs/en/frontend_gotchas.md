@@ -51,7 +51,7 @@ When content height ≈ viewport, "scrollbar appears → content narrows → ref
 
 ### 3. Cache layer (hard rule): immutable long-cache assets must use versioned URLs
 
-Even after the CSS was correct, users still saw jitter — the real culprit was cache headers. `jsplugin-assets/*` (`common.css`/`common.js` at the time, now split into `theme.css` / `components.css` / `common.js` / `webf-shims.css` / `webf-shims.js`) previously used a **fixed, unversioned URL** + `Cache-Control: immutable`, so browsers didn't even revalidate and cached the old file for a year; the fix could never reach users.
+Even after the CSS was correct, users still saw jitter — the real culprit was cache headers. `jsplugin-assets/*` (`common.css`/`common.js` at the time, now split into `theme.css` / `components.css` / `common.js`) previously used a **fixed, unversioned URL** + `Cache-Control: immutable`, so browsers didn't even revalidate and cached the old file for a year; the fix could never reach users.
 
 - **General rule**: any `immutable` long-cache asset **must use a content-hash versioned URL** (e.g. `?v=<first 8 of sha256>`), or any later change is unreachable for existing users.
 - Implementation: `injectHTMLHead` appends `?v=<hash>` to every injected common-asset URL (`assetVersions` in `internal/jsplugin/routes.go`); the hosting HTML is `no-cache` so it always carries the latest version. When content is unchanged the URL is stable and the long cache still applies. Any new common asset must be registered in `assetVersions` too.
@@ -137,6 +137,6 @@ Android Chrome shows a black screen after returning from background.
 
 ## Related module references
 
-- Plugin common assets and theme bridge: `internal/jsplugin/assets/` (`theme.css` / `components.css` / `common.js` / `webf-shims.*`), `injectHTMLHead`.
+- Plugin common assets and theme bridge: `internal/jsplugin/assets/` (`theme.css` / `components.css` / `common.js`), `injectHTMLHead`.
 - Play activity / prefetch transcoding: prefetch transcoding must not be canceled by activating the current song via `playactivity.Activate` (`Activate` skips `CatPrefetch`); otherwise the next track's prefetch ffmpeg is SIGKILLed and playback still transcodes in real time.
 - Sources without duration (e.g. WebDAV): `song.duration=0` makes miot speakers not advance tracks (advancing relies on server-side duration); probe and backfill on import (`RefreshSong` with bounded concurrency after `AddRemoteSongs`).

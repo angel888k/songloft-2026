@@ -1,9 +1,9 @@
 /* Songloft Plugin — Theme / Foundation Layer
- * 由主程序自动注入到所有插件 HTML 页面（第一层，先于 components.css / webf-shims.css）。
+ * 由主程序自动注入到所有插件 HTML 页面（第一层，先于 components.css）。
  *
  * 本文件是插件与客户端主题的**唯一契约**：字体、Material Design 3 设计令牌
  * （`--md-*`）、尺寸/圆角/阴影令牌、安全区变量、reset 与 body 基样。
- * 组件样式在 components.css，WebF 引擎垫片样式在 webf-shims.css。 */
+ * 组件样式在 components.css。 */
 
 /* ── Fonts ── */
 @font-face {
@@ -63,9 +63,8 @@
  * 即便下推没到（消息丢失）观感也与主程序默认主题一致。
  * **改这里的值请重新从 Flutter 导出，不要手调** —— 手调必然与 M3 色调板脱节。
  *
- * ⚠️ 插件想用 **JS** 读色，必须走 `SongloftPlugin.getColorScheme()`，不能读 CSS：
- * WebF 的 `getComputedStyle` 对自定义属性一律返回空串；原生控件
- * （`<flutter-cupertino-*>`）的属性值不展开 `var()`，只吃字面 hex。
+ * ⚠️ 插件想用 **JS** 读色，必须走 `SongloftPlugin.getColorScheme()`，
+ * `getComputedStyle` 对自定义属性的支持没有跨环境契约。
  *
  * 命名与 Flutter `ColorScheme` 字段一一对应（camelCase → kebab-case）。唯二例外是
  * `--md-success*` / `--md-warning*`：M3 没有这两个角色，是本项目自有语义色，
@@ -177,17 +176,13 @@ html[data-theme="dark"] {
 /* ── 安全区内边距变量 --sl-safe-*（songloft-org/songloft#341）──
  *
  * 刘海屏 / 圆角屏 / 手势条的安全区。**插件请一律写 `var(--sl-safe-bottom)`，
- * 不要直接写 `env(safe-area-inset-bottom)`** —— WebF 渲染引擎不实现 `env()`，
- * 写 env() 的插件页在 WebF 下会顶到状态栏 / 被下巴切掉。三种环境下这四个变量
- * 都有确定值：
- *   ① 普通浏览器 / 系统 WebView → 下面 :root 的 env() 原生求值（桌面即 0px）
- *   ② WebF + 新客户端 → webf-shims.css 的 `html.webf-engine` 先压成 0px，
- *      随后宿主用 MediaQuery.viewPadding 真值经 common.js 写到 documentElement
- *      的**内联样式**上覆盖（内联优先级最高）
- *   ③ WebF + 旧客户端（不推安全区）→ 停在 0px，等价「没有安全区」
+ * 不要直接写 `env(safe-area-inset-bottom)`** —— 留一层宿主可统一覆盖的间接层。
+ * 环境取值：普通浏览器 / 系统 WebView 走下面 :root 的 env() 原生求值（桌面即
+ * 0px）；宿主客户端可把 MediaQuery.viewPadding 真值经 common.js 写到
+ * documentElement 的**内联样式**上覆盖（内联优先级最高）。
  *
- * ⚠️ WebF 的两条已实测边界：没有 `max()`/`min()`；`clamp()` 可用且参数里可塞
- * `var()`。想表达「至少留 24px，安全区更大时按安全区」用
+ * ⚠️ 刻意只用 `clamp()` 不用 `max()`/`min()`（兼容面更稳）。想表达
+ * 「至少留 24px，安全区更大时按安全区」用
  * `clamp(24px, var(--sl-safe-bottom), 96px)`。 */
 :root {
     --sl-safe-top: env(safe-area-inset-top, 0px);
@@ -200,10 +195,9 @@ html[data-theme="dark"] {
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
 /* ── 滚动条:跟随主题 ──
- * 插件页的滚动条默认落到 WebF / 浏览器原生样式,深色主题下会露出一条浅色条
+ * 插件页的滚动条默认是浏览器原生样式,深色主题下会露出一条浅色条
  * （songloft-org/songloft-plugin-downloader 的下载列表即此现象）。这里用 --md-*
  * 令牌统一着色,所有插件自动跟随主程序主题,无需各自重复。
- * WebF 已验证支持 `::-webkit-scrollbar` + `var()`(见 radio 插件)。
  * 局部想隐藏滚动条的容器仍可用更具体的选择器覆盖(如 `scrollbar-width: none`)。 */
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: transparent; }
@@ -221,13 +215,13 @@ html[data-theme="dark"] {
  * `scrollbar-gutter: stable` 无效（只对 overflow:auto/scroll 容器生效），必须
  * `overflow-y: scroll` 让视口滚动条常驻、宽度恒定，回路才被打断。
  * **只在嵌入态（`html.embed`）强制常驻**：那个回路只在「视口被外层固定住」时发生
- * （App 内嵌 iframe / WebF 原生渲染面，均带 `?embed`）。普通浏览器直接打开插件页
+ * （App 内嵌 iframe，带 `?embed`）。普通浏览器直接打开插件页
  * 窗口可自由伸缩、无此回路，强制常驻只会平白多一条置灰滚动条（#341），故交回默认。
  *
  * ── 且必须「不占宽度」（scrollbar-width: none / display:none）──
  * 经典滚动条占布局宽度（本文件定制后为 8px）：内容视口比 iframe 窄 8px，插件里
  * 用 100vw 定宽的元素会横向溢出、列表右缘出现裁切。原生 App 的 WebView 滚动条
- * 本就是 overlay 式（不占宽度）、WebF 无真实滚动条——插件是按「滚动条不占宽」
+ * 本就是 overlay 式（不占宽度）——插件是按「滚动条不占宽」
  * 设计的，桌面浏览器 iframe（Lynx Web / Flutter Web 宿主）是唯一让经典滚动条
  * 露出宽度副作用的环境。隐藏后 `overflow-y: scroll` 的防抖机制不受影响（滚动
  * 能力仍常驻、宽度恒定为 0），且与原生环境的视觉一致。滚轮/触摸滚动照常可用。 */

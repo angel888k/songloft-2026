@@ -14,7 +14,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -31,9 +30,8 @@ var pluginAssets embed.FS
 
 const maxPluginBodySize = 50 << 20 // 50MB，对齐 multipart 上传需求
 
-// assetVersions 缓存公共资源（theme.css / components.css / common.js /
-// webf-shims.css / webf-shims.js）内容哈希的前 8 位 hex，用于给 injectHTMLHead
-// 注入的资源 URL 加 ?v=<hash> 做 cache-busting。
+// assetVersions 缓存公共资源（theme.css / components.css / common.js）内容哈希的
+// 前 8 位 hex，用于给 injectHTMLHead 注入的资源 URL 加 ?v=<hash> 做 cache-busting。
 //
 // 背景（#278）：jsplugin-assets 用固定无版本 URL（/api/v1/jsplugin-assets/<name>）
 // + "immutable, max-age=1年" 长缓存服务。immutable 意味着浏览器连重新验证都不做——
@@ -44,8 +42,8 @@ const maxPluginBodySize = 50 << 20 // 50MB，对齐 multipart 上传需求
 var assetVersions = computeAssetVersions()
 
 func computeAssetVersions() map[string]string {
-	versions := make(map[string]string, 5)
-	for _, name := range []string{"theme.css", "components.css", "common.js", "webf-shims.css", "webf-shims.js"} {
+	versions := make(map[string]string, 3)
+	for _, name := range []string{"theme.css", "components.css", "common.js"} {
 		data, err := pluginAssets.ReadFile("assets/" + name)
 		if err != nil {
 			continue
@@ -98,7 +96,7 @@ func (m *Manager) RegisterStaticRoutes(r chi.Router) {
 // handlePluginAssets 服务插件公共资源（CSS/JS/字体）。
 //
 // @Summary     插件公共资源
-// @Description 服务由主程序嵌入的插件公共资源（theme.css / components.css / common.js / webf-shims.css / webf-shims.js 及字体），自动注入到所有插件 HTML 页面。
+// @Description 服务由主程序嵌入的插件公共资源（theme.css / components.css / common.js 及字体），自动注入到所有插件 HTML 页面。
 // @Tags        JS 插件
 // @Produce     octet-stream
 // @Param       * path string true "资源路径"
@@ -532,12 +530,9 @@ func (m *Manager) tryServeStaticFile(w http.ResponseWriter, r *http.Request, sta
 
 // injectHTMLHead 在 HTML 的 <head> 后（紧跟开标签）注入 <base> 标签、auth bridge 脚本和公共资源引用。
 //
-// 注入顺序：base → auth bridge → theme.css → components.css → webf-shims.css →
-// common.js → webf-shims.js。
-//   - CSS 三层：theme.css（令牌契约/字体/reset）→ components.css（组件库）→
-//     webf-shims.css（WebF 垫片样式）。var() 跨文件解析与顺序无关，但按语义排列。
-//   - JS 两层：common.js（运行时核心，建 window.SongloftPlugin 与内部句柄）→
-//     webf-shims.js（WebF 垫片，回填 applyShims / lastPickedFiles，故须在其后）。
+// 注入顺序：base → auth bridge → theme.css → components.css → common.js。
+//   - CSS 两层：theme.css（令牌契约/字体/reset）→ components.css（组件库）。
+//   - JS：common.js（运行时核心，建 window.SongloftPlugin 与内部句柄）。
 //
 // 全部 render-blocking，保证在页面内容前执行。
 //
@@ -546,44 +541,20 @@ func (m *Manager) tryServeStaticFile(w http.ResponseWriter, r *http.Request, sta
 // 否则浏览器的预加载扫描器（preload scanner）会用错误的基准 URL 发起资源请求。
 //
 // 如果 HTML 中没有 <head> 标签，则在文件开头注入。
-// emptySrcAttrRe 匹配 src="" / src=” / src= "" （含等号两侧空白）。
-//
-// 刻意只匹配**完全空**的值，不碰任何非空 src。
-var emptySrcAttrRe = regexp.MustCompile(`\s+src\s*=\s*(""|'')`)
-
-// stripEmptySrcAttrs 去掉页面里的空 src 属性。
-//
-// 按 HTML 规范空 src 是无效值，浏览器不会为它发请求，所以删掉它对浏览器与系统
-// WebView 都是语义上的无操作。但 WebF 会把空 src **解析成当前文档 URL**，于是把
-// 插件页自己的 HTML 抓回来当图片解码，报 `Failed to decode image (mime=text/html)`
-// （songloft-org/songloft#341 实测命中 miot / stats / music-feed 等多个插件）。
-//
-// 为什么必须在服务端做：静态 HTML 里的 src 是**解析器**设的，加载在解析期就已
-// 发起，早于任何脚本能跑的时机 —— common.js 里再怎么扫都来不及。运行时的
-// `img.src = ”` 是另一条路径，由 common.js 的属性访问器兜底。
-func stripEmptySrcAttrs(html []byte) []byte {
-	return emptySrcAttrRe.ReplaceAll(html, nil)
-}
-
 func injectHTMLHead(html []byte, entryPath, basePath string) []byte {
-	html = stripEmptySrcAttrs(html)
 	baseTag := []byte(`<base href="` + basePath + `/api/v1/jsplugin/` + entryPath + `/">`)
 	authScript := []byte(authBridgeScriptTpl)
 	assetsBase := basePath + "/api/v1/jsplugin-assets/"
 	themeLink := []byte(`<link rel="stylesheet" href="` + assetURL(assetsBase, "theme.css") + `">`)
 	componentsLink := []byte(`<link rel="stylesheet" href="` + assetURL(assetsBase, "components.css") + `">`)
-	shimsLink := []byte(`<link rel="stylesheet" href="` + assetURL(assetsBase, "webf-shims.css") + `">`)
 	jsScript := []byte(`<script src="` + assetURL(assetsBase, "common.js") + `"></script>`)
-	shimsScript := []byte(`<script src="` + assetURL(assetsBase, "webf-shims.js") + `"></script>`)
 
-	injectPayload := make([]byte, 0, len(baseTag)+len(authScript)+len(themeLink)+len(componentsLink)+len(shimsLink)+len(jsScript)+len(shimsScript))
+	injectPayload := make([]byte, 0, len(baseTag)+len(authScript)+len(themeLink)+len(componentsLink)+len(jsScript))
 	injectPayload = append(injectPayload, baseTag...)
 	injectPayload = append(injectPayload, authScript...)
 	injectPayload = append(injectPayload, themeLink...)
 	injectPayload = append(injectPayload, componentsLink...)
-	injectPayload = append(injectPayload, shimsLink...)
 	injectPayload = append(injectPayload, jsScript...)
-	injectPayload = append(injectPayload, shimsScript...)
 
 	// 优先在 <head> 开标签之后注入（确保 <base> 出现在所有 <link>/<script> 之前）
 	headOpenIdx := bytes.Index(html, []byte("<head>"))
