@@ -85,6 +85,72 @@
     }
 
     var lastColorScheme = readPersistedColorScheme();
+    var HEX_RE = /^#[0-9a-fA-F]{6}$/;
+    var RGBA_RE = /^rgba\(\s*([0-9.]+)\s*,\s*([0-9.]+)\s*,\s*([0-9.]+)\s*,\s*([0-9.]+)\s*\)$/;
+
+    // ── 宿主主题外观参数 ──────────────────────────────────────────────────
+    // `ColorScheme` 只能描述颜色，无法表达主题包的标准/胶囊导航样式。将这些
+    // 非颜色视觉参数随同一条 `songloft-theme` 消息下推并持久化，插件首帧即可
+    // 使用与主程序一致的迷你播放器形态。
+    var THEME_APPEARANCE_STORAGE_KEY = 'songloft-theme-appearance';
+    var DEFAULT_THEME_APPEARANCE = {
+        navigationStyle: 'standard',
+        cardRadius: 12,
+        controlRadius: 12,
+        navigationRadius: 12,
+        playerGradient: [],
+        glassFill: null,
+        glassBorder: null
+    };
+
+    function normalizeRadius(value, fallback) {
+        var n = Number(value);
+        return Number.isFinite(n) ? Math.max(0, Math.min(64, n)) : fallback;
+    }
+
+    function normalizeOptionalColor(value) {
+        if (typeof value !== 'string') return null;
+        var match = value.match(RGBA_RE);
+        if (!match) return null;
+        var r = Number(match[1]);
+        var g = Number(match[2]);
+        var b = Number(match[3]);
+        var a = Number(match[4]);
+        if (![r, g, b, a].every(Number.isFinite)) return null;
+        if (r < 0 || r > 255 || g < 0 || g > 255 || b < 0 || b > 255) return null;
+        if (a < 0 || a > 1) return null;
+        return 'rgba(' + r + ', ' + g + ', ' + b + ', ' + a + ')';
+    }
+
+    function normalizeThemeAppearance(value) {
+        var source = value && typeof value === 'object' ? value : {};
+        var gradient = Array.isArray(source.playerGradient)
+            ? source.playerGradient.filter(function(color) {
+                return typeof color === 'string' && HEX_RE.test(color);
+            }).slice(0, 8)
+            : [];
+        if (gradient.length === 1) gradient.push(gradient[0]);
+        return {
+            navigationStyle: source.navigationStyle === 'capsule' ? 'capsule' : 'standard',
+            cardRadius: normalizeRadius(source.cardRadius, DEFAULT_THEME_APPEARANCE.cardRadius),
+            controlRadius: normalizeRadius(source.controlRadius, DEFAULT_THEME_APPEARANCE.controlRadius),
+            navigationRadius: normalizeRadius(source.navigationRadius, DEFAULT_THEME_APPEARANCE.navigationRadius),
+            playerGradient: gradient,
+            glassFill: normalizeOptionalColor(source.glassFill),
+            glassBorder: normalizeOptionalColor(source.glassBorder)
+        };
+    }
+
+    function readPersistedThemeAppearance() {
+        try {
+            var raw = localStorage.getItem(THEME_APPEARANCE_STORAGE_KEY);
+            return raw ? normalizeThemeAppearance(JSON.parse(raw)) : DEFAULT_THEME_APPEARANCE;
+        } catch (e) {
+            return DEFAULT_THEME_APPEARANCE;
+        }
+    }
+
+    var lastThemeAppearance = readPersistedThemeAppearance();
 
     // camelCase → `--md-kebab-case`。key 用 Flutter `ColorScheme` 的字段名，
     // 好让两个仓库的表能逐字段对照审计，不必另记一套映射。
@@ -98,8 +164,6 @@
     var COLOR_ALIASES = {
         '--md-surface-variant': 'surfaceContainerHighest'
     };
-
-    var HEX_RE = /^#[0-9a-fA-F]{6}$/;
 
     function applyColorScheme(colors) {
         if (!colors || typeof colors !== 'object') return;
@@ -136,14 +200,55 @@
         }));
     }
 
-    // 色板的 ready 相补写。
-    function applyColorSchemeOnReady() {
+    function applyThemeAppearance(appearance) {
+        var normalized = normalizeThemeAppearance(appearance);
+        lastThemeAppearance = normalized;
+        try {
+            localStorage.setItem(THEME_APPEARANCE_STORAGE_KEY, JSON.stringify(normalized));
+        } catch (e) {
+            // ignore
+        }
+
+        var de = document.documentElement;
+        if (!de || !de.style || typeof de.style.setProperty !== 'function') return;
+        de.setAttribute('data-navigation-style', normalized.navigationStyle);
+        de.style.setProperty('--sl-theme-card-radius', normalized.cardRadius + 'px');
+        de.style.setProperty('--sl-theme-control-radius', normalized.controlRadius + 'px');
+        de.style.setProperty('--sl-theme-navigation-radius', normalized.navigationRadius + 'px');
+        if (normalized.playerGradient.length > 0) {
+            de.style.setProperty(
+                '--sl-theme-player-gradient',
+                'linear-gradient(180deg, ' + normalized.playerGradient.join(', ') + ')'
+            );
+            de.setAttribute('data-player-gradient', 'custom');
+        } else {
+            de.style.removeProperty('--sl-theme-player-gradient');
+            de.removeAttribute('data-player-gradient');
+        }
+        if (typeof normalized.glassFill === 'string') {
+            de.style.setProperty('--sl-theme-glass-fill', normalized.glassFill);
+        } else {
+            de.style.removeProperty('--sl-theme-glass-fill');
+        }
+        if (typeof normalized.glassBorder === 'string') {
+            de.style.setProperty('--sl-theme-glass-border', normalized.glassBorder);
+        } else {
+            de.style.removeProperty('--sl-theme-glass-border');
+        }
+        document.dispatchEvent(new CustomEvent('songloft-theme-appearance-change', {
+            detail: { appearance: normalized }
+        }));
+    }
+
+    // 色板与主题外观的 ready 相补写。
+    function applyThemeDetailsOnReady() {
         if (lastColorScheme) applyColorScheme(lastColorScheme);
+        applyThemeAppearance(lastThemeAppearance);
     }
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', applyColorSchemeOnReady);
+        document.addEventListener('DOMContentLoaded', applyThemeDetailsOnReady);
     } else {
-        applyColorSchemeOnReady();
+        applyThemeDetailsOnReady();
     }
 
     // ── 宿主消息通道 ──
@@ -163,6 +268,13 @@
                 } catch (err) {
                     console.warn('[songloft] color-scheme apply failed:', err);
                 }
+            }
+            try {
+                // 老宿主没有 appearance 字段时显式回退 standard，避免复用新宿主
+                // 留在 localStorage 里的 capsule 样式。
+                applyThemeAppearance(e.data.appearance || DEFAULT_THEME_APPEARANCE);
+            } catch (err) {
+                console.warn('[songloft] theme appearance apply failed:', err);
             }
             applyTheme(e.data.theme);
         } else if (e.data.type === 'songloft-player-state') {

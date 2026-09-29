@@ -78,3 +78,24 @@ func TestTryServeStaticFileCOEPHeader(t *testing.T) {
 		t.Errorf("非 HTML 资源不应带 COEP 头，got %q", got)
 	}
 }
+
+// TestCommonJSThemeAppearanceBridge 防止主题包的非颜色参数在插件桥中丢失。
+func TestCommonJSThemeAppearanceBridge(t *testing.T) {
+	content, err := pluginAssets.ReadFile("assets/common.js")
+	if err != nil {
+		t.Fatalf("read common.js: %v", err)
+	}
+	js := string(content)
+	for _, want := range []string{
+		"songloft-theme-appearance",
+		"data-navigation-style",
+		"--sl-theme-player-gradient",
+		"--sl-theme-glass-fill",
+		"--sl-theme-glass-border",
+		"e.data.appearance || DEFAULT_THEME_APPEARANCE",
+	} {
+		if !strings.Contains(js, want) {
+			t.Errorf("common.js 缺少主题外观桥接片段 %q", want)
+		}
+	}
+}
