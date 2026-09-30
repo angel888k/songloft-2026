@@ -130,7 +130,7 @@ Songloft 使用 **JWT 双令牌机制**（Access Token + Refresh Token）。认�
 | `GET /api/v1/health` | 健康检查 |
 | `GET /api/v1/jsplugin/{entryPath}` | 插件静态页面（HTML） |
 | `GET /api/v1/jsplugin/{entryPath}/static/*` | 插件静态资源（CSS/JS/图片） |
-| `GET /api/v1/jsplugin-assets/*` | 插件公共资源（common.css/common.js/字体） |
+| `GET /api/v1/jsplugin-assets/*` | 插件公共资源（theme.css/components.css/common.js/字体） |
 | 插件 `publicPaths` 声明的路径 | 插件 manifest 中声明的无需认证的 API 路径 |
 
 **认证端点**（需 Bearer Token）：

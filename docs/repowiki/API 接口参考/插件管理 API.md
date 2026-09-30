@@ -678,7 +678,8 @@ JS 插件系统是 Songloft 的扩展机制，基于 QuickJS 沙盒运行。插�
 **描述:** 服务由主程序嵌入的插件通用 CSS、JS 和字体文件。`injectHTMLHead` 自动注入到所有插件 HTML 页面。
 
 包含的资源：
-- `common.css` -- 定义 `--md-*` CSS 变量（亮/暗双主题）
+- `theme.css` -- 定义 `--md-*` CSS 变量、令牌、字体与 reset（亮/暗双主题）
+- `components.css` -- MD3 组件类（`.card` / `.btn-*` / `.text-field` 等）
 - `common.js` -- embed 检测 + 主题桥接（`postMessage` 实时更新 + `data-theme` 属性），暴露 `window.SongloftPlugin` 全局 API
 
 资源设置强缓存（1 年，immutable）。

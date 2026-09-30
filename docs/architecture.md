@@ -60,7 +60,7 @@ Songloft 是一个自托管的本地音乐服务器，采用前后端分离架�
 |------|------|------|
 | Go | 1.26+ | 后端语言 |
 | Chi | v5.2.4 | HTTP 路由框架 |
-| SQLite | modernc.org/sqlite v1.46.1 | 纯 Go 数据库驱动 |
+| SQLite | modernc.org/sqlite v1.49.1 | 纯 Go 数据库驱动 |
 | goose | v3 | SQL schema 迁移（启动时自动 Up） |
 | sqlc | - | 固定 SQL 生成类型安全 Go 代码（CLI） |
 | squirrel | v1.5 | 动态 SQL 构造（变长 WHERE/SET/ORDER） |
@@ -68,7 +68,7 @@ Songloft 是一个自托管的本地音乐服务器，采用前后端分离架�
 | QuickJS | modernc.org/quickjs | JS 运行时（JS 插件沙盒） |
 | hanxi/tag | - | 音频元数据读写 |
 | ffprobe | 可选 | 音频技术参数 |
-| Tracely | v1.1.0 | 监控上报（心跳、安装/升级统计、panic 捕获） |
+| Tracely | v1.1.3 | 监控上报（心跳、安装/升级统计、panic 捕获） |
 
 ### Flutter 前端
 
@@ -119,6 +119,7 @@ songloft/
 │   │       └── shared/         # 共享布局、模型、组件
 │   ├── player-lynx/            # Lynx 客户端（子模块）
 │   ├── player-build/           # Flutter Web 构建产物（go:embed 嵌入）
+│   ├── themes/                 # 官方主题包仓库（子模块，在线主题目录源）
 │   └── tv/                     # Android TV 客户端（子模块）
 ├── plugins/                    # 插件生态
 │   ├── toolchain/              # JS 插件开发工具链（SDK + Builder + 脚手架）
@@ -192,24 +193,35 @@ make build-frontend-all            # 当前系统支持的所有平台
 | **configs** | 系统配置 | key(唯一), value(JSON) |
 | **auth_tokens** | 认证令牌 | token_id, token_type(access/refresh), expires_at, revoked_at |
 | **js_plugins** | JS 插件信息 | name, version, entry_path, main, permissions, file_path, status(active/inactive/error), zip_hash, entry_hash |
+| **plugin_storage** | JS 插件 KV 存储（`host.storage` 桥接） | plugin_entry_path, key(联合唯一), value |
+| **play_history** | 播放历史（按播放上下文记忆） | context_type, context_key, song_id, played_at, play_count |
+| **theme_packs** | 主题包（声明式 JSON） | theme_id(唯一), name, schema_version, raw_json |
+| **song_tags** | 自定义标签 | name(唯一 NOCASE), color |
+| **song_tag_links** | 标签-歌曲关联 | song_id, tag_id(联合主键) |
+| **artists** | 歌手实体（规范化去重） | name, normalized_key(唯一) |
+| **song_artists** | 歌曲-歌手关联 | song_id, artist_id, role(artist/album_artist), position |
 
 ### 索引设计
 
-- 歌曲：类型、标题、艺术家、添加时间;(plugin_entry_path, dedup_key) 部分唯一索引(`WHERE dedup_key != ''`),用于网络歌曲按插件身份去重导入
-- 歌单：类型、labels
-- 歌单歌曲：playlist_id、position
+- 歌曲：类型、标题、艺术家、添加时间、file_path；(plugin_entry_path, dedup_key) 部分唯一索引(`WHERE dedup_key != ''`),用于网络歌曲按插件身份去重导入
+- 歌单：类型、labels、name 唯一索引（全局唯一，DB 层兜底防重名）
+- 歌单歌曲：playlist_id、position、song_id
 - 配置：key
 - 令牌：token_id、token_type、expires_at、revoked_at
 - JS 插件：status、entry_path
+- 插件存储：plugin_entry_path
+- 播放历史：(context_type, context_key, played_at, id)
+- 标签关联：tag_id
+- 歌曲-歌手：artist_id、song_id
 
 ### 触发器
 
-所有表均配置 `updated_at` 自动更新触发器。
+所有主表（songs / playlists / configs / auth_tokens / js_plugins / plugin_storage / theme_packs）均配置 `updated_at` 自动更新触发器；关联表与历史表（playlist_songs / play_history / song_tags / song_tag_links / artists / song_artists）为只增不更新，仅有 `created_at`。
 
 ### 初始化数据
 
 - 内置歌单：收藏（id=1）、电台收藏（id=2），均带 `labels=["built_in"]`
-- 默认配置：`music_path`、`cover_storage_path`、`scan_config`、`ffprobe_path`、`jwt_secret`、`source_validation`、`source_fallback`、`source_metrics`
+- 默认配置：`music_path`、`cover_storage_path`、`scan_config`、`ffprobe_path`、`jwt_secret`、`source_validation`、`source_fallback`、`source_metrics`、`plugin_registries`、`scan_auto_create_playlists`
 - `music_cache_config` 等不在迁移内预置，由对应 service 首次使用时按需写入
 
 ## 扩展性设计

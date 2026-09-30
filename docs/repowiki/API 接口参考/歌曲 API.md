@@ -17,6 +17,10 @@
    - [GET /songs/ids -- ID 列表](#22-get-songsids----id-列表)
    - [GET /songs/duplicates -- 重复检测](#23-get-songsduplicates----重复检测)
    - [GET /songs/facets -- 标签分类聚合](#24-get-songsfacets----标签分类聚合)
+   - [GET /songs/stats -- 曲库统计](#25-get-songsstats----曲库统计)
+   - [GET /songs/random -- 随机歌曲](#26-get-songsrandom----随机歌曲)
+   - [GET /songs/folders -- 文件夹浏览](#27-get-songsfolders----文件夹浏览)
+   - [GET /songs/names -- 歌名与歌手名清单](#28-get-songsnames----歌名与歌手名清单)
 3. [增删改](#3-增删改)
    - [GET /songs/{id} -- 获取详情](#31-get-songsid----获取详情)
    - [PUT /songs/{id} -- 更新歌曲](#32-put-songsid----更新歌曲)
@@ -30,6 +34,7 @@
    - [PUT /songs/{id}/lyrics -- 更新歌词](#41-put-songsidlyrics----更新歌词)
    - [GET /songs/{id}/lyric -- 获取歌词](#42-get-songsidlyric----获取歌词)
    - [PUT /songs/{id}/tags -- 写入音频标签](#43-put-songsidtags----写入音频标签)
+   - [GET /songs/{id}/song-tags -- 歌曲的自定义标签](#44-get-songsidsong-tags----歌曲的自定义标签)
 5. [文件整理](#5-文件整理)
    - [POST /songs/organize -- 批量整理文件](#51-post-songsorganize----批量整理文件)
    - [POST /songs/organize/preview -- 预览批量整理](#52-post-songsorganizepreview----预览批量整理)
@@ -42,6 +47,10 @@
 7. [HLS 反向代理](#7-hls-反向代理)
    - [GET /songs/{id}/hls/playlist -- 代理播放列表](#71-get-songsidhlsplaylist----代理播放列表)
    - [GET /songs/{id}/hls/segment -- 代理切片](#72-get-songsidhlssegment----代理切片)
+8. [音轨与参与歌手](#8-音轨与参与歌手)
+   - [GET /songs/{id}/audio-tracks -- 音频流列表](#81-get-songsidaudio-tracks----音频流列表)
+   - [GET /songs/{id}/tracks -- 全部轨道枚举](#82-get-songsidtracks----全部轨道枚举)
+   - [GET /songs/{id}/artists -- 参与歌手](#83-get-songsidartists----参与歌手)
 
 ---
 
@@ -169,6 +178,105 @@
 `total` 为该维度去重取值总数。
 
 **错误:** `400` 缺少或不支持的 `field` | `500` 服务器错误
+
+---
+
+### 2.5 GET /songs/stats -- 曲库统计
+
+**路径:** `/api/v1/songs/stats` | **认证:** BearerAuth
+
+返回曲库汇总统计（单次查询完成）。
+
+**成功响应 (200):**
+
+```json
+{
+  "total_songs": 1234,
+  "local_songs": 1000,
+  "remote_songs": 200,
+  "radio_songs": 34,
+  "total_duration": 43210.5,
+  "total_file_size": 53687091200,
+  "artist_count": 87,
+  "album_count": 152,
+  "genre_count": 23
+}
+```
+
+**错误:** `500` 获取曲库统计失败
+
+---
+
+### 2.6 GET /songs/random -- 随机歌曲
+
+**路径:** `/api/v1/songs/random` | **认证:** BearerAuth
+
+随机返回若干首歌曲，支持与 `/songs` 相同的类型/关键词/路径过滤。
+
+**查询参数:**
+
+| 参数 | 类型 | 必填 | 默认值 | 说明 |
+|------|------|------|--------|------|
+| `type` | string | 否 | -- | `local` / `remote` / `radio` |
+| `keyword` | string | 否 | -- | 搜索关键词 |
+| `path_prefix` | string | 否 | -- | 按 `file_path` 前缀过滤 |
+| `exclude_playlist_labels` | string | 否 | -- | 排除带指定 label 的歌单内歌曲（逗号分隔） |
+| `limit` | int | 否 | `50` | 返回数量，上限 `500` |
+
+> 另支持歌曲标签过滤参数（与 `/songs` 一致，见标签管理 API）。
+
+**成功响应 (200):** `{"songs": [Song...], "total": 50}`（`total` 等于实际返回条数）
+
+**错误:** `500` 获取随机歌曲失败
+
+---
+
+### 2.7 GET /songs/folders -- 文件夹浏览
+
+**路径:** `/api/v1/songs/folders` | **认证:** BearerAuth
+
+按目录层级浏览本地歌曲。`path` 为相对于 `music_path` 的路径（空 = 根目录），返回下一级子文件夹（含各自递归歌曲数）与当前目录的直属歌曲。路径做 traversal 防护（含 `..` 返回 400）。
+
+**查询参数:**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `path` | string | 否 | 相对于 `music_path` 的子目录（空 = 根） |
+| `keyword` | string | 否 | 对子文件夹名模糊过滤 |
+
+**成功响应 (200):**
+
+```json
+{
+  "path": "评书",
+  "parent_path": "",
+  "music_path": "/music",
+  "folders": [{"name": "三国演义", "path": "评书/三国演义", "song_count": 120}],
+  "total_folders": 2,
+  "songs": [Song...],
+  "total_songs": 5
+}
+```
+
+**错误:** `400` 未设置音乐目录 / 非法路径（含 `..`） | `500` 读取失败
+
+---
+
+### 2.8 GET /songs/names -- 歌名与歌手名清单
+
+**路径:** `/api/v1/songs/names` | **认证:** BearerAuth
+
+一次性返回曲库中指定维度的全部去重、非空取值（按名称升序），不分页、无计数、无封面等冗余字段。用于客户端自动补全/快速跳转。
+
+**查询参数:**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `field` | string | 是 | `title`（歌名）或 `artist`（歌手名） |
+
+**成功响应 (200):** `{"field": "artist", "names": ["周杰伦", "林俊杰"], "total": 2}`
+
+**错误:** `400` 缺少或不支持的 `field` | `500` 获取曲库名录失败
 
 ---
 
@@ -414,6 +522,20 @@
 
 ---
 
+### 4.4 GET /songs/{id}/song-tags -- 歌曲的自定义标签
+
+**路径:** `/api/v1/songs/{id}/song-tags` | **认证:** BearerAuth
+
+返回该歌曲已绑定的自定义标签列表（顶层数组，无绑定时返回 `[]`）。标签的增删/绑定由「标签管理 API」（`/song-tags`）统一管理；此处只读。
+
+**路径参数:** `id` (int, 必填)
+
+**成功响应 (200):** `[SongTag...]`，每项含 `id` / `name` / `color` / `song_count` / `cover_url`（可选）/ `created_at`。
+
+**错误:** `400` 无效的歌曲 ID | `500` 获取歌曲标签失败
+
+---
+
 ## 5. 文件整理
 
 **章节来源**: `internal/handlers/music.go`、`internal/services/song_service.go`
@@ -536,7 +658,7 @@ dry-run 预览目录整理变更，**不移动任何文件、不改数据库**�
 
 **路径:** `/api/v1/songs/{id}/play.m3u8` | **方法:** `GET` / `HEAD` | **认证:** BearerAuth
 
-与 `/play` 共享 handler 的 HLS 电台专用别名。URL 以 `.m3u8` 结尾使 ExoPlayer/AVPlayer 正确选择 HlsMediaSource。客户端通过 `Song.PlaybackURL()` 自动获取正确 URL。参数与响应同 [6.3](#63-get-songsidplay----播放流)。
+与 `/play` 共享 handler 的 HLS 电台专用别名。URL 以 `.m3u8` 结尾便于播放器（Web 端 hls.js / 原生 media_kit）识别为 HLS 流并走 HLS 处理路径。客户端通过 `Song.PlaybackURL()` 自动获取正确 URL。参数与响应同 [6.3](#63-get-songsidplay----播放流)。
 
 ---
 
@@ -585,3 +707,51 @@ HLS 反代在 `hls_proxy` 开关开启（`PUT /settings/hls-proxy`）后生效�
 **成功:** `200` 切片内容 | `206` Range 部分内容。`Cache-Control: no-store`
 
 **错误:** `400` 无效 ID / 缺少 u | `403` 非同源 / 主机不允许 | `404` 歌曲不存在 | `502` 上游不可用
+
+---
+
+## 8. 音轨与参与歌手
+
+**章节来源**: `internal/handlers/music.go`、`internal/services/cache_service_transcode.go`（`AudioTrackInfo`）、`internal/models/artist.go`
+
+### 8.1 GET /songs/{id}/audio-tracks -- 音频流列表
+
+**路径:** `/api/v1/songs/{id}/audio-tracks` | **认证:** BearerAuth
+
+用 ffprobe 探测该歌曲文件的音频流，返回每条流的 audio-relative index（对应 `ffmpeg -map 0:a:N`）、`title`、`language`、`codec`、`default`。主要用于 Web 端双音轨（原唱/伴奏 mka）切换：前端据数量决定是否显示切轨入口，并用 index 调 `/songs/{id}/play?track=N` 抽轨播放。仅本地歌曲（或已落地缓存的网络歌曲）有文件可探测；无可探测文件或音频流 < 2 条时也正常返回（前端据此不显示切轨）。运行时按需探测，不落库。
+
+**路径参数:** `id` (int, 必填)
+
+**成功响应 (200):** `{"tracks": [{"index": 0, "title": "", "language": "chi", "codec": "aac", "default": true}]}`（无文件时返回 `{"tracks": []}`）
+
+**错误:** `400` 无效 ID | `404` 歌曲不存在
+
+---
+
+### 8.2 GET /songs/{id}/tracks -- 全部轨道枚举
+
+**路径:** `/api/v1/songs/{id}/tracks` | **认证:** BearerAuth
+
+枚举歌曲文件中的音频轨道，返回精简信息（`index` / `codec` / `language` / `title`，无 `default` 字段），以顶层数组形式返回。与 8.1 互补：8.1 返回带 `default` 标志的对象包装，用于双音轨切换；本端点用于通用轨道列举。
+
+**路径参数:** `id` (int, 必填)
+
+**成功响应 (200):** `[{"index": 0, "codec": "aac", "language": "chi", "title": ""}]`（无文件时返回 `[]`）
+
+**错误:** `400` 无效 ID | `404` 歌曲不存在
+
+---
+
+### 8.3 GET /songs/{id}/artists -- 参与歌手
+
+**路径:** `/api/v1/songs/{id}/artists` | **认证:** BearerAuth
+
+返回歌曲的参与歌手列表（规范化多值歌手，迁移 `0038` 引入）。每项含歌手实体（`id` / `name` / `created_at`）、`role`（`artist` 主唱/表演者，或 `album_artist` 专辑歌手）与同角色内 `position`。用于对唱/合唱歌曲按搭档检索与展示。
+
+**路径参数:** `id` (int, 必填)
+
+**成功响应 (200):** `{"artists": [{"artist": {"id": 1, "name": "周杰伦", "created_at": "2024-01-01T12:00:00Z"}, "role": "artist", "position": 0}]}`（无关联时返回 `{"artists": []}`）
+
+**错误:** `400` 无效 ID | `404` 歌曲不存在 | `500` 获取参与歌手失败
+
+> 可用 `PUT /songs/{id}/artists` 全量替换参与歌手（详见 Swagger）。

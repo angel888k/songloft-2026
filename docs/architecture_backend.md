@@ -187,7 +187,7 @@ HTTP Server (main.go)
 - `permissions.go`: 权限模型校验
 - `service.go`: 插件实例服务壳层
 - `routes.go`: 子路由挂载
-- `assets/`: 嵌入的插件公共资源（`common.css`/`common.js`/字体，经 `/api/v1/jsplugin-assets/*` 提供并自动注入插件页面）
+- `assets/`: 嵌入的插件公共资源（`theme.css`/`components.css`/`common.js`/字体，经 `/api/v1/jsplugin-assets/*` 提供并自动注入插件页面；URL 带内容哈希版本号 `?v=<sha256前8位>` 实现不可变长缓存）
 
 #### jsruntime/ - JavaScript 运行时
 
@@ -205,7 +205,7 @@ HTTP Server (main.go)
 
 #### tag/ - 音频元数据读写库
 
-- **读取**:MP3（ID3v1/ID3v2.2/2.3/2.4）、FLAC、OGG/Vorbis、M4A/MP4、WAV、APE、AIFF、DSF 格式;封面图片、歌词、编码检测
+- **读取**:MP3（ID3v1/ID3v2.2/2.3/2.4）、FLAC、OGG/Vorbis、M4A/MP4、WAV、APE、AIFF、DSF、MKA(Matroska) 格式;封面图片、歌词、编码检测
 - **写入**(`WriteTag(filePath, opts)`,按扩展名 dispatch,均为临时文件 + `os.Rename` 原子写入):
 
   | 格式 | 文本字段 | 歌词 | 封面 |

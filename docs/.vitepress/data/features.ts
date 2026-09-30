@@ -37,9 +37,9 @@ export const FEATURES: FeatureRow[] = [
       en: 'Colors are extracted live from album art so every track gets its own mood. Background playback with lock-screen and notification controls.',
     },
     bullets: [
-      { zh: '专辑封面动态取色', en: 'Live color from art' },
-      { zh: '后台播放 & 媒体控制', en: 'Background & media controls' },
-      { zh: '耳机 / 锁屏 / 通知栏', en: 'Headset · lock screen' },
+      { zh: '封面动态取色 · 视频画面同源播放', en: 'Live color · in-app video' },
+      { zh: '后台播放 · 锁屏 / 通知栏媒体控制', en: 'Background · lock-screen controls' },
+      { zh: '桌面歌词 · DLNA 投屏 · 均衡器', en: 'Desktop lyrics · DLNA · equalizer' },
     ],
     image: '/screenshots/player-mobile.png',
     frame: 'phone',
@@ -70,7 +70,7 @@ export const FEATURES: FeatureRow[] = [
     },
     bullets: [
       { zh: '浅色 / 深色 / 跟随系统', en: 'Light · dark · system' },
-      { zh: '六平台一套代码', en: 'One codebase, 6 platforms' },
+      { zh: '自定义主题包 · 在线主题目录', en: 'Custom theme packs · online catalog' },
       { zh: 'Web 界面开箱即用', en: 'Web UI out of the box' },
     ],
     image: '/screenshots/home-desktop.png',
@@ -92,5 +92,21 @@ export const FEATURES: FeatureRow[] = [
     image: '/screenshots/home-mobile.png',
     frame: 'phone',
     reverse: false,
+  },
+  {
+    id: 'control',
+    title: { zh: '掌控每一处细节', en: 'Control every detail' },
+    desc: {
+      zh: '多服务器一键切换、本地与远程双模式随时切换；自动扫描配合指纹去重保持曲库干净，播放历史按上下文记忆，远程歌曲可本地缓存，歌单一键导出备份。',
+      en: 'Switch multiple servers and toggle local/remote anytime. Auto-scan with fingerprint dedup keeps your library clean, play history remembers per context, remote tracks cache locally, and playlists export in one click.',
+    },
+    bullets: [
+      { zh: '多服务器 · 本地/远程双模式', en: 'Multi-server · local & remote' },
+      { zh: '自动扫描 + 指纹去重', en: 'Auto-scan + fingerprint dedup' },
+      { zh: '播放历史 · 本地缓存 · 备份', en: 'History · cache · backup' },
+    ],
+    image: '/screenshots/settings-desktop.png',
+    frame: 'browser',
+    reverse: true,
   },
 ]
