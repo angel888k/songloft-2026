@@ -407,8 +407,8 @@ clients/player/lib/
 | 屏幕类型 | 宽度范围 | 说明 |
 |---------|---------|------|
 | **Mobile** | < 600px | 底部导航 + 迷你播放器 |
-| **Tablet** | 600 - 900px | 底部导航 + 迷你播放器（更宽） |
-| **Desktop** | 900px+ | 侧边导航 + 底部播放器栏 |
+| **Tablet** | 600 - 900px | 底部导航 + 播放器（更宽） |
+| **Desktop** | 900px+ | 侧边导航 + 播放器 |
 
 ### 布局架构
 
@@ -419,6 +419,19 @@ ShellLayout (ShellRoute builder)
 │   └── Desktop: NavigationRail (侧边) + DesktopPlayer (底部)
 └── 内容区域 (GoRouter child)
 ```
+
+### 播放器形态（`navigationStyle`）
+
+底部播放器有**两种形态**，由主题扩展 `SongloftThemeExtension.navigationStyle` 决定，与断点正交：
+
+| 形态 | 手机 | 平板 / 桌面 |
+|------|------|-------------|
+| **`capsule`**（胶囊 / 玻璃主题） | 浮起胶囊条：全圆角 pill、精简控制区，**无真模糊**（半透填充 + 内高光） | **浮起玻璃胶囊条**：pill 高 64、半径 = 高度 / 2、真毛玻璃（`GlassSurface` + `BackdropFilter`，sigma 20）、顶边 3px 圆角进度 + 上方 16px 可点按 / 拖拽热区、常驻「播放模式 · 音量 · 歌词 · 队列 · 更多」 |
+| **standard**（默认） | 底部迷你播放器（2px 进度 + 64px 主体，占 `bottomNavigationBar` 槽位） | 占布局高度的底栏：平板为 `MiniPlayer`，桌面为 90px `DesktopPlayer`（含 `border-top`） |
+
+胶囊形态在平板 / 桌面上**不是** `Column` 里的兄弟节点，而是由 `AdaptiveScaffold._overlayBottomPlayer` 用 `Stack` **浮在内容之上**，横跨「内容列 + 播放列表抽屉」整宽；桌面胶囊条同样不覆盖左侧 240px 毛玻璃侧栏。播放列表抽屉本身不感知胶囊条，其表面仍贯通到屏幕底部，抽屉下沿会被浮起的胶囊条遮住一条。因为播放器浮起后不占布局高度，滚动内容改由 `ResponsiveContext.navScrollInset` 自行预留底部空间（大屏胶囊档 `bottom + 84 = 64 + 12 + 8`，手机档仍为 `bottom + 16`）。
+
+尺寸常量集中在 `lib/core/theme/app_dimensions.dart` 的 `AppCapsulePlayer`（手机高 59 = 11 + 48，大屏高 64 = 16 + 48；pill 半径由高度推导，不引入新圆角 token）。内容行（封面 / 标题 / 控制区）在胶囊内**垂直居中**：整条 = 顶部进度热区 + 内容行，热区高度与底部呼吸空间相等，因此封面与按钮在胶囊上下留白等分；顶边进度条是独立覆盖层，仍整宽贴着胶囊顶边框。胶囊形态的唯一实现是 `CapsuleMiniPlayer`（`lib/features/player/presentation/widgets/capsule_mini_player.dart`），手机档（`CapsuleMiniPlayer.compact`）与大屏档共用同一套骨架，只差尺寸、是否真模糊与控制区密度。`widescreen` 的 `WidescreenSidePlayer` 不在此列。
 
 ## 主题系统
 

@@ -407,8 +407,8 @@ Routing implements an authentication guard using GoRouter's `redirect` mechanism
 | Screen type | Width range | Description |
 |---------|---------|------|
 | **Mobile** | < 600px | Bottom navigation + mini player |
-| **Tablet** | 600 - 900px | Bottom navigation + mini player (wider) |
-| **Desktop** | 900px+ | Side navigation + bottom player bar |
+| **Tablet** | 600 - 900px | Bottom navigation + player (wider) |
+| **Desktop** | 900px+ | Side navigation + player |
 
 ### Layout Architecture
 
@@ -419,6 +419,19 @@ ShellLayout (ShellRoute builder)
 │   └── Desktop: NavigationRail (side) + DesktopPlayer (bottom)
 └── Content area (GoRouter child)
 ```
+
+### Player Form (`navigationStyle`)
+
+The bottom player has **two forms**, selected by the theme extension field `SongloftThemeExtension.navigationStyle` and orthogonal to the breakpoints:
+
+| Form | Mobile | Tablet / Desktop |
+|------|--------|------------------|
+| **`capsule`** (capsule / glass theme) | Floating capsule bar: fully rounded pill, slimmed-down controls, **no real blur** (translucent fill + inner highlight) | **Floating glass capsule bar**: pill height 64, radius = height / 2, real frosted glass (`GlassSurface` + `BackdropFilter`, sigma 20), a 3px rounded progress track along the top edge plus a 16px tappable / draggable hit area above it, and a persistent toolbar of play mode · volume · lyrics · queue · more |
+| **standard** (default) | Bottom mini player (2px progress + 64px body, occupying the `bottomNavigationBar` slot) | A bar that takes up layout height: `MiniPlayer` on tablet, the 90px `DesktopPlayer` on desktop (with `border-top`) |
+
+In the capsule form, tablet / desktop do **not** render the player as a `Column` sibling; `AdaptiveScaffold._overlayBottomPlayer` **floats it above the content** with a `Stack`, spanning the full width of "content column + playlist drawer"; on desktop the capsule bar likewise does not cover the 240px frosted-glass sidebar. The playlist drawer itself is unaware of the capsule bar: its surface still extends to the bottom of the screen, and the floating capsule bar covers a sliver of the drawer's lower edge. Because the player no longer occupies layout height, scrolling content reserves its own bottom space via `ResponsiveContext.navScrollInset` (wide capsule tier: `bottom + 84 = 64 + 12 + 8`; mobile tier stays `bottom + 16`).
+
+Size constants live in `AppCapsulePlayer` in `lib/core/theme/app_dimensions.dart` (mobile height 59 = 11 + 48, wide height 64 = 16 + 48; the pill radius is derived from the height, so no new radius token is introduced). The content row (cover / title / controls) is **vertically centered** inside the pill: the pill height is the top progress hit area plus the content row, and the hit area is exactly as tall as the bottom breathing space, so the cover and the buttons split the remaining space evenly above and below. The top-edge progress bar is a separate overlay layer and still hugs the pill's top border at full width. The single implementation of the capsule form is `CapsuleMiniPlayer` (`lib/features/player/presentation/widgets/capsule_mini_player.dart`); the mobile tier (`CapsuleMiniPlayer.compact`) and the wide tier share one skeleton and differ only in size, real blur, and control density. `WidescreenSidePlayer` for `widescreen` is out of scope.
 
 ## Theme System
 
