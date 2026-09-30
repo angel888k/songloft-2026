@@ -6,6 +6,69 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [v2.13.0] - 2026-09-30
+### :boom: BREAKING CHANGES
+- due to [`20cf441`](https://github.com/songloft-org/songloft/commit/20cf441062a284c71638b7fd878c916f2cf37dd7) - 彻底移除 WebF 渲染引擎支持 *(commit by [@hanxi](https://github.com/hanxi))*:
+
+  声明 renderEngine: "webf" 的插件在新宿主上安装/更新  
+  会被拒绝；存量已安装条目由客户端回落到系统 WebView。  
+  songloft-org/songloft#341
+
+
+### :sparkles: New Features
+- [`2b8bbf2`](https://github.com/songloft-org/songloft/commit/2b8bbf2cfc8f648273cf115de199dcbbf5afa11e) - **jsplugin**: 主页插件网格新增自定义排序设置 *(commit by [@hanxi](https://github.com/hanxi))*
+- [`0606c81`](https://github.com/songloft-org/songloft/commit/0606c81fc83fd0778f02f71db77638d695a73738) - **cover**: 视频无封面时从视频抽帧兜底 *(commit by [@hanxi](https://github.com/hanxi))*
+- [`0b8c0d2`](https://github.com/songloft-org/songloft/commit/0b8c0d251ae3f194e2ca7fd6428e2bcafb5e3c9d) - **jsplugin**: songs.create 透传 is_video；同步 player/lynx/sdk 子模块 *(commit by [@hanxi](https://github.com/hanxi))*
+- [`e69fe70`](https://github.com/songloft-org/songloft/commit/e69fe706fd7c45adcfdcf9a3f14af3c3f3072bfd) - **jsplugin**: 向插件下发主题外观参数，支撑胶囊播放器等非颜色样式 *(commit by [@hanxi](https://github.com/hanxi))*
+
+### :bug: Bug Fixes
+- [`93b20b0`](https://github.com/songloft-org/songloft/commit/93b20b016e31c84633b5b2aadf9e06aed5950add) - **playlist**: 歌单歌曲排序增加二级排序键，修复等值行下升降序无效 *(commit by [@hanxi](https://github.com/hanxi))*
+- [`1d34f77`](https://github.com/songloft-org/songloft/commit/1d34f77043d608a551de598fff64254842819f94) - **ci**: 修复 Pages 构建与 Release 发布两个失败 *(commit by [@hanxi](https://github.com/hanxi))*
+- [`a156dca`](https://github.com/songloft-org/songloft/commit/a156dcad8b41b322577db022aea2d6cf8ea4f8d8) - **jsplugin**: 修插件商店 icon 显示为首字符 *(commit by [@hanxi](https://github.com/hanxi))*
+- [`81c582e`](https://github.com/songloft-org/songloft/commit/81c582ef9408666f31b63ca8ac3224713279a0ee) - **rename**: 手动编辑同步重命名文件包含歌手前缀 *(commit by [@hanxi](https://github.com/hanxi))*
+- [`f8aec42`](https://github.com/songloft-org/songloft/commit/f8aec42d49e809391552681958d3aa979f4d7175) - **backend**: 修复关键功能 Bug（MarshalJSON 变异、Logout clientID、随机数安全） *(commit by [@hanxi](https://github.com/hanxi))*
+- [`4c6b219`](https://github.com/songloft-org/songloft/commit/4c6b2194dfe5970167f26dc53fa9a2c62b8f4871) - **jsplugin**: 插件安全加固——请求 body、下载、解压、文件追加、进程数限制 *(commit by [@hanxi](https://github.com/hanxi))*
+- [`27bf3c9`](https://github.com/songloft-org/songloft/commit/27bf3c999bc7ff38ae9a86fed529b87cc7e1471d) - **backend**: 系统性修复 9 处并发安全问题 *(commit by [@hanxi](https://github.com/hanxi))*
+- [`a932463`](https://github.com/songloft-org/songloft/commit/a932463e0e16c9b7aca7b32c8cf01f136b21c9d2) - **handlers**: 统一错误处理与 API 响应一致性 *(commit by [@hanxi](https://github.com/hanxi))*
+- [`947a6f5`](https://github.com/songloft-org/songloft/commit/947a6f54ea848584d5f2115e2adade5f5c412498) - **backend**: 输入校验与资源管理加固（Batch 5） *(commit by [@hanxi](https://github.com/hanxi))*
+- [`002ef2a`](https://github.com/songloft-org/songloft/commit/002ef2a4ec79899b33d3983c9751bc9649a8b320) - **scan**: 按 mtime 触发扫描重提取；客户端歌词缓存按 updatedAt 失效 *(PR [#477](https://github.com/songloft-org/songloft/pull/477) by [@hanxi](https://github.com/hanxi))*
+- [`5b9ef13`](https://github.com/songloft-org/songloft/commit/5b9ef13fc3e777dd0e66445b6ac9a052a36e937a) - **source**: 补全音源解析缓存键，避免跨排除集/时长串缓存 *(PR [#486](https://github.com/songloft-org/songloft/pull/486) by [@tangsong404](https://github.com/tangsong404))*
+
+### :recycle: Refactors
+- [`20f5903`](https://github.com/songloft-org/songloft/commit/20f5903d3a65b0ced0d34233c9e31f69ca4fe61f) - **backend**: 代码质量改进（Batch 6） *(commit by [@hanxi](https://github.com/hanxi))*
+- [`20cf441`](https://github.com/songloft-org/songloft/commit/20cf441062a284c71638b7fd878c916f2cf37dd7) - 彻底移除 WebF 渲染引擎支持 *(commit by [@hanxi](https://github.com/hanxi))*
+
+### :memo: Documentation Changes
+- [`171e928`](https://github.com/songloft-org/songloft/commit/171e928d7672baa7342139d7decf5e314a1a81ee) - update CHANGELOG for v2.12.1 *(commit by [@github-actions[bot]](https://github.com/apps/github-actions))*
+- [`437fc90`](https://github.com/songloft-org/songloft/commit/437fc903b0f11ee0586ccdfe97578cdeec5c20b6) - 整理 CHANGELOG.md *(commit by [@hanxi](https://github.com/hanxi))*
+- [`c57fb25`](https://github.com/songloft-org/songloft/commit/c57fb2593e60704959bf8f3e4696688663be2e82) - **repowiki**: 同步 Batch 1-6 代码修改到文档 *(commit by [@hanxi](https://github.com/hanxi))*
+- [`6f27a69`](https://github.com/songloft-org/songloft/commit/6f27a6918b7c6d69fb649c0bc4ad1990cadd7e1e) - 全仓库文档与实现一致性同步 *(commit by [@hanxi](https://github.com/hanxi))*
+- [`494b375`](https://github.com/songloft-org/songloft/commit/494b375e7dc0e8a88771e269420d1896388dd417) - **player**: 同步胶囊迷你播放器重构后的前端架构说明并 bump 子模块 *(commit by [@hanxi](https://github.com/hanxi))*
+- [`c8939d4`](https://github.com/songloft-org/songloft/commit/c8939d4942c3c3ffea79e6faca9515458b524bf2) - 修正 Linux webview 口径与许可证，跟进 player 子模块 *(commit by [@hanxi](https://github.com/hanxi))*
+- [`3f46307`](https://github.com/songloft-org/songloft/commit/3f46307d0d8006c443949e007ed4463445d73cb9) - 同步落后于代码的文档 *(commit by [@hanxi](https://github.com/hanxi))*
+
+### :wrench: Chores
+- [`c6ed3e6`](https://github.com/songloft-org/songloft/commit/c6ed3e6e3ea4b15ac5f0fa8d702f7858648113ea) - **submodule**: 升级 clients/player 与 clients/player-lynx 至插件排序版本 *(commit by [@hanxi](https://github.com/hanxi))*
+- [`033964b`](https://github.com/songloft-org/songloft/commit/033964bedacf3df845c487f592492d87fb780fbc) - **submodules**: bump player / player-lynx / tv *(commit by [@hanxi](https://github.com/hanxi))*
+- [`a68fbf3`](https://github.com/songloft-org/songloft/commit/a68fbf38e260602ac1718409eee2936d5e9e70f9) - **home**: bump player 子模块（首页定位到正在播放歌单） *(commit by [@hanxi](https://github.com/hanxi))*
+- [`449d65f`](https://github.com/songloft-org/songloft/commit/449d65f51060c0c762858d9ce820ba60a43915f3) - **miot**: bump 子模块（诊断日志 + X08E 兼容 + v2026.9.16）
+- [`e565c66`](https://github.com/songloft-org/songloft/commit/e565c664fe78d5837cb4188ec4e41f669527e3fe) - **miot**: 更新子模块指针到 bb1e962 *(commit by [@hanxi](https://github.com/hanxi))*
+- [`06f054a`](https://github.com/songloft-org/songloft/commit/06f054a52b9d849dc9618d19e72f959519788b99) - **miot**: bump 子模块（播放时支持从歌单删除歌曲） *(commit by [@hanxi](https://github.com/hanxi))*
+- [`4ac6f09`](https://github.com/songloft-org/songloft/commit/4ac6f09f681771780032074c81619cfbd07ab95a) - **submodules**: 更新 5 个子模块指针 *(commit by [@hanxi](https://github.com/hanxi))*
+- [`6adc74e`](https://github.com/songloft-org/songloft/commit/6adc74eb533b7d0229ac03f610d9993c39dd02d3) - **submodules**: 更新 clients/player 指针修复 CI iOS 构建 *(commit by [@hanxi](https://github.com/hanxi))*
+- [`308bac0`](https://github.com/songloft-org/songloft/commit/308bac0d799d54acb9f74f21b60393a034430668) - **miot**: 升级 miot 插件子模块指针，修复定时任务起始歌曲不刷新 *(commit by [@hanxi](https://github.com/hanxi))*
+- [`5cc57f3`](https://github.com/songloft-org/songloft/commit/5cc57f392ccce8cfb3b8f887400d415375acd77b) - **miot**: 升级 miot 插件子模块指针，新增"播放第 N 首"语音口令 *(commit by [@hanxi](https://github.com/hanxi))*
+- [`d78fb9e`](https://github.com/songloft-org/songloft/commit/d78fb9ece944f533f5ae401ff756cbf362276547) - **deps**: 升级子模块指针，长歌单添加可拖动滚动条 *(commit by [@hanxi](https://github.com/hanxi))*
+- [`6532d34`](https://github.com/songloft-org/songloft/commit/6532d34dfee1ee0b1ea23ed5267d446b1e91a491) - **miot**: 更新 songloft-plugin-miot 指针至 df0b74c *(commit by [@hanxi](https://github.com/hanxi))*
+- [`eb63aee`](https://github.com/songloft-org/songloft/commit/eb63aee863951ede0b6a497dc6ee3c555e5a555f) - **subs**: 更新 miot 与 player 子模块指针至滚动条修复 *(commit by [@hanxi](https://github.com/hanxi))*
+- [`c5ca49b`](https://github.com/songloft-org/songloft/commit/c5ca49b3ed4cef2613b9600cc43c58690094978c) - **miot**: 更新 miot 插件子模块指针至 89e9bd7（切歌尾部校验修复 [#481](https://github.com/songloft-org/songloft/pull/481)） *(commit by [@hanxi](https://github.com/hanxi))*
+- [`7333a06`](https://github.com/songloft-org/songloft/commit/7333a06379df2b5acc57763863cad79d54047181) - **player**: 更新 player 子模块指针至 f705992（单尖括号逐字 LRC 支持 [#483](https://github.com/songloft-org/songloft/pull/483)） *(commit by [@hanxi](https://github.com/hanxi))*
+- [`5f82458`](https://github.com/songloft-org/songloft/commit/5f82458daa65c6f65b10df8b093e17d111714181) - 更新 player/lynx/miot 子模块指针 *(commit by [@hanxi](https://github.com/hanxi))*
+- [`c70c547`](https://github.com/songloft-org/songloft/commit/c70c5473bac66e609a4ca4b1987664d736eec72b) - 更新 player/miot 子模块指针（插件主题外观与页面样式优化） *(commit by [@hanxi](https://github.com/hanxi))*
+- [`c29b654`](https://github.com/songloft-org/songloft/commit/c29b654805f6ba99906d69db2a6108ee7eb900b8) - **submodule**: 更新 player/lynx/tv/toolchain 子模块指针 *(commit by [@hanxi](https://github.com/hanxi))*
+- [`536e764`](https://github.com/songloft-org/songloft/commit/536e764b89b8a99e2c38cbb66c5bfdec7d9bda61) - release version 2.13.0 *(commit by [@hanxi](https://github.com/hanxi))*
+
+
 ## [v2.12.1] - 2026-09-14
 ### :sparkles: New Features
 - [`fbba7e4`](https://github.com/songloft-org/songloft/commit/fbba7e40eeb1a6302576a5894cc6a13b8bfb4372) - **play-history**: 支持 tag 上下文并删标签时级联清理历史 *(commit by [@hanxi](https://github.com/hanxi))*
@@ -1972,3 +2035,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [v2.11.6]: https://github.com/songloft-org/songloft/compare/v2.11.5...v2.11.6
 [v2.12.0]: https://github.com/songloft-org/songloft/compare/v2.11.6...v2.12.0
 [v2.12.1]: https://github.com/songloft-org/songloft/compare/v2.12.0...v2.12.1
+[v2.13.0]: https://github.com/songloft-org/songloft/compare/v2.12.1...v2.13.0
