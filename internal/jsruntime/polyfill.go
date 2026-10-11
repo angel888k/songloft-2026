@@ -385,27 +385,26 @@ function __fetchBodyToHex(body) {
 // setTimeout/clearTimeout/setInterval/clearInterval polyfill
 var __timers = new Map();
 var __timerIdCounter = 0;
-var __freeTimerIds = [];
 function __allocTimerId() {
-    if (__freeTimerIds.length > 0) return __freeTimerIds.pop();
+    // Never reuse a handle: callbacks and late Promise results may still cancel it.
+    if (__timerIdCounter >= Number.MAX_SAFE_INTEGER) {
+        throw new RangeError('timer handle limit reached');
+    }
     return ++__timerIdCounter;
-}
-function __freeTimerId(id) {
-    __freeTimerIds.push(id);
 }
 globalThis.setTimeout = function(fn, ms) {
     var id = __allocTimerId();
     __timers.set(id, { fn: fn, deadline: __go_now_ms() + (ms || 0), interval: 0 });
     return id;
 };
-globalThis.clearTimeout = function(id) { __timers.delete(id); __freeTimerId(id); };
+globalThis.clearTimeout = function(id) { __timers.delete(id); };
 globalThis.setInterval = function(fn, ms) {
     var id = __allocTimerId();
     ms = Math.max(ms || 0, 10); // minimum 10ms to prevent tight loops
     __timers.set(id, { fn: fn, deadline: __go_now_ms() + ms, interval: ms });
     return id;
 };
-globalThis.clearInterval = function(id) { __timers.delete(id); __freeTimerId(id); };
+globalThis.clearInterval = function(id) { __timers.delete(id); };
 // Count only one-shot timers (setTimeout), ignore interval timers
 // This prevents processJobs from waiting indefinitely for interval timers
 globalThis.__getPendingOneShotTimerCount = function() {
@@ -437,7 +436,6 @@ globalThis.__processExpiredTimers = function() {
         } else {
             // One-shot timer: remove
             __timers.delete(expired[i]);
-            __freeTimerId(expired[i]);
         }
         if (entry.fn) try { entry.fn(); } catch(e) { console.error('timer error:', e); }
     }
