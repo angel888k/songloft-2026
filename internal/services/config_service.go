@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"strconv"
@@ -47,7 +48,10 @@ func (s *ConfigService) GetString(key, defaultValue string) string {
 	ctx := context.Background()
 	config, err := s.repo.Get(ctx, key)
 	if err != nil {
-		slog.Warn("获取配置失败，使用默认值", "key", key, "default", defaultValue, "error", err)
+		// 未设置的配置使用调用方默认值，属于正常情况。
+		if !errors.Is(err, database.ErrNotFound) {
+			slog.Warn("获取配置失败，使用默认值", "key", key, "default", defaultValue, "error", err)
+		}
 		return defaultValue
 	}
 

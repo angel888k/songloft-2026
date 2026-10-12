@@ -1,9 +1,14 @@
 package services
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
+	"errors"
+	"log/slog"
 	"testing"
 
+	"songloft/internal/database"
 	"songloft/internal/database/testutil"
 	"songloft/internal/models"
 )
@@ -15,6 +20,72 @@ func newTestConfigRepo(t *testing.T) interface {
 	t.Helper()
 	mdb := testutil.OpenMemoryDB(t)
 	return mdb.ConfigRepository()
+}
+
+func TestConfigServiceMissingConfigDoesNotWarn(t *testing.T) {
+	repo := newTestConfigRepo(t)
+	service := NewConfigService(repo)
+
+	var logs bytes.Buffer
+	previousLogger := slog.Default()
+	slog.SetDefault(slog.New(slog.NewJSONHandler(&logs, nil)))
+	t.Cleanup(func() { slog.SetDefault(previousLogger) })
+
+	for _, key := range []string{"theme_catalog_url", "volume_normalize", "volume_normalize_loudness"} {
+		for _, fallback := range []string{"", "first_default", "second_default"} {
+			if got := service.GetString(key, fallback); got != fallback {
+				t.Errorf("GetString(%q, %q) = %q", key, fallback, got)
+			}
+		}
+		if _, err := repo.Get(context.Background(), key); !errors.Is(err, database.ErrNotFound) {
+			t.Fatalf("missing config %q was persisted: error = %v", key, err)
+		}
+	}
+	if got := service.GetBool("volume_normalize", false); got {
+		t.Error("missing volume_normalize should default to false")
+	}
+	if got := service.GetInt("missing_integer", 42); got != 42 {
+		t.Errorf("missing integer = %d, want 42", got)
+	}
+
+	if err := service.Set("volume_normalize", "true"); err != nil {
+		t.Fatalf("Set() error = %v", err)
+	}
+	if !service.GetBool("volume_normalize", false) {
+		t.Error("setting a previously missing config should take effect immediately")
+	}
+	if logs.Len() != 0 {
+		t.Errorf("missing configs should not emit warnings: %s", logs.String())
+	}
+}
+
+func TestConfigServiceReadFailureWarns(t *testing.T) {
+	db := testutil.OpenMemoryDB(t)
+	service := NewConfigService(db.ConfigRepository())
+	if err := db.Close(); err != nil {
+		t.Fatalf("Close() error = %v", err)
+	}
+
+	var logs bytes.Buffer
+	previousLogger := slog.Default()
+	slog.SetDefault(slog.New(slog.NewJSONHandler(&logs, nil)))
+	t.Cleanup(func() { slog.SetDefault(previousLogger) })
+
+	if got := service.GetString("theme_catalog_url", "default"); got != "default" {
+		t.Errorf("GetString() on read failure = %q, want default", got)
+	}
+	var entry struct {
+		Level   string `json:"level"`
+		Message string `json:"msg"`
+		Key     string `json:"key"`
+		Error   string `json:"error"`
+	}
+	if err := json.Unmarshal(logs.Bytes(), &entry); err != nil {
+		t.Fatalf("decode warning: %v; logs = %s", err, logs.String())
+	}
+	if entry.Level != "WARN" || entry.Message != "获取配置失败，使用默认值" || entry.Key != "theme_catalog_url" || entry.Error == "" {
+		t.Errorf("read failure warning missing diagnostics: %+v", entry)
+	}
 }
 
 // TestConfigServiceGetString 测试获取字符串配置
