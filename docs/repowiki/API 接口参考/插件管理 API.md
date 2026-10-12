@@ -415,6 +415,8 @@ JS 插件系统是 Songloft 的扩展机制，基于 QuickJS 沙盒运行。插�
 
 ## 4. 注册表端点
 
+Flutter/Lynx 商店通常由客户端渐进拉取清单；以下刷新端点保留为 Web 跨域或连接失败的兼容回退。带源 Token 的读取与安装下载绕过 GitHub 加速代理。共享 GitHub Token 通过已认证的 `GET/PUT /api/v1/settings/github-discovery-token` 读写 `{ "token": "..." }`（空字符串清除，响应 `Cache-Control: no-store`），只用于客户端官方 API 直连；源 Token 优先，服务器回退与安装不使用共享 Token。
+
 ### 4.1 POST /jsplugins/registry/refresh -- 刷新注册表
 
 **方法:** `POST`

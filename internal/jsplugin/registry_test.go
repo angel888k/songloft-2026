@@ -4,12 +4,35 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"strings"
 	"testing"
 )
+
+type registryTokenTransport func(*http.Request) (*http.Response, error)
+
+func (f registryTokenTransport) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
+
+func TestFetchAndMerge_TokenBypassesGithubPrefixProxy(t *testing.T) {
+	svc := NewRegistryService()
+	svc.httpClient.Transport = registryTokenTransport(func(r *http.Request) (*http.Response, error) {
+		if r.URL.Host != "raw.githubusercontent.com" || r.Header.Get("Authorization") != "Bearer source-token" {
+			t.Errorf("unexpected credential destination: %s", r.URL.Host)
+		}
+		body := `{"plugins":["https://raw.githubusercontent.com/alice/store/main/plugin.json"]}`
+		if strings.HasSuffix(r.URL.Path, "/plugin.json") {
+			body = `{"name":"Private","entryPath":"private","version":"1.0.0","download_url":"https://github.com/alice/store/releases/download/v1/private.zip"}`
+		}
+		return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(body)), Header: make(http.Header)}, nil
+	})
+	plugins, warnings, err := svc.FetchAndMerge(context.Background(), "https://raw.githubusercontent.com/alice/store/main/registry.json", "https://mirror.test/", "source-token")
+	if err != nil || len(plugins) != 1 || len(warnings) != 0 {
+		t.Fatalf("plugins=%d warnings=%v error=%v", len(plugins), warnings, err)
+	}
+}
 
 func TestCompareVersion(t *testing.T) {
 	tests := []struct {

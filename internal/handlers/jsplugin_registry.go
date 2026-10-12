@@ -202,6 +202,7 @@ type registryRefreshResponse struct {
 // @Description 去重键为 entry_path + identity（identity = 规范化 author，author 为空时用 updateUrl 的 GitHub owner/repo 兜底）：entry_path 相同但作者不同的插件会各自成行，同一插件被多个源收录时仍只显示一条（保留高版本）。
 // @Description 若某条目的 entry_path 已被本地一个**不同作者**的插件占用，返回 installed=false、conflict=true，并在 conflict_with 中描述占用者；此时安装该插件需要用户确认覆盖。
 // @Description 拉取结果在服务端缓存 5 分钟：分页与搜索都在缓存的完整列表上做切片/过滤，不会重复拉取远端。传 force=true 绕过缓存强制重拉（供「刷新」按钮使用，翻页与搜索不要传）。安装状态（installed/has_update/conflict）不受缓存影响，每次请求都从数据库实时计算。
+// @Description Flutter/Lynx 商店通常由客户端逐个拉取清单并渐进展示；此接口保留为 Web 跨域或网络失败的兼容回退。携带源 Token 的远端请求绕过 GitHub 加速代理，此接口不会读取共享的 GitHub 发现 Token。
 // @Tags JS插件管理
 // @Accept json
 // @Produce json
@@ -430,7 +431,7 @@ func (h *JSPluginHandler) resolveSourceToken(sourceURL string) string {
 
 // handleRegistryInstall 从注册表 download_url 安装插件
 // @Summary 从注册表安装插件
-// @Description 从注册表中的 download_url 下载 ZIP 并安装插件。如果 entry_path 已存在且属于同一作者，则自动走更新路径。支持 GitHub 代理（含 api.github.com 私有仓库 Release 资源的下载，代理端需开启 FORWARD_AUTHORIZATION_API 才会转发 token）。可选传入 token 字段用于从需要认证的私有源下载；若未提供 token 但提供了 source_url（「全部」聚合模式），后端会自动从 plugin_registries 配置解析该源存储的 token。
+// @Description 从注册表中的 download_url 下载 ZIP 并安装插件。如果 entry_path 已存在且属于同一作者，则自动走更新路径。匿名下载支持 GitHub 加速代理；携带 Token 的下载始终绕过加速代理，避免凭据泄漏。可选传入 token 字段用于从需要认证的私有源下载；若未提供 token 但提供了 source_url，后端会自动从 plugin_registries 配置解析该源存储的 token。
 // @Description 若 entry_path 已被本地一个**不同作者**的插件占用，返回 409 且不做任何写入（不落盘、不动 static 目录、不改数据库）。前端应向用户说明会替换原插件后，带 overwrite=true 重发本请求。
 // @Tags JS插件管理
 // @Accept json
@@ -558,6 +559,7 @@ func downloadZIP(ctx context.Context, rawURL string, githubProxy string, token s
 	client := httputil.NewClient(60 * time.Second)
 	var header http.Header
 	if token != "" {
+		githubProxy = ""
 		header = http.Header{"Authorization": []string{"Bearer " + token}}
 	}
 	resp, err := httputil.GetWithGithubProxyFallback(ctx, client, rawURL, githubProxy,
@@ -600,10 +602,16 @@ func parseGitHubReleaseURL(rawURL string) (owner, repo, tag, filename string, ok
 // downloadGitHubReleaseAsset downloads a release asset from a private GitHub
 // repo via the GitHub API. Browser-style release URLs (github.com/.../releases/
 // download/...) don't accept Bearer tokens for private repos—only the API does.
-// githubProxy（非空时）会给两次 api.github.com 请求都套上加速代理前缀，
-// 代理需要开 FORWARD_AUTHORIZATION_API 才会把 Authorization 转发给 GitHub。
+// 携带 Token 时，两次 api.github.com 请求都绕过 GitHub 加速代理。
 func downloadGitHubReleaseAsset(ctx context.Context, owner, repo, tag, filename, token, githubProxy string) ([]byte, error) {
 	client := httputil.NewClient(60 * time.Second)
+	return downloadGitHubReleaseAssetWithClient(ctx, client, owner, repo, tag, filename, token, githubProxy)
+}
+
+func downloadGitHubReleaseAssetWithClient(ctx context.Context, client *http.Client, owner, repo, tag, filename, token, githubProxy string) ([]byte, error) {
+	if token != "" {
+		githubProxy = ""
+	}
 
 	releaseURL := httputil.ApplyGithubProxy(
 		fmt.Sprintf("https://api.github.com/repos/%s/%s/releases/tags/%s", owner, repo, tag),
@@ -613,7 +621,9 @@ func downloadGitHubReleaseAsset(ctx context.Context, owner, repo, tag, filename,
 	if err != nil {
 		return nil, fmt.Errorf("create release request: %w", err)
 	}
-	req.Header.Set("Authorization", "Bearer "+token)
+	if token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
 	req.Header.Set("Accept", "application/vnd.github+json")
 
 	resp, err := client.Do(req)
@@ -655,7 +665,9 @@ func downloadGitHubReleaseAsset(ctx context.Context, owner, repo, tag, filename,
 	if err != nil {
 		return nil, fmt.Errorf("create asset request: %w", err)
 	}
-	req2.Header.Set("Authorization", "Bearer "+token)
+	if token != "" {
+		req2.Header.Set("Authorization", "Bearer "+token)
+	}
 	req2.Header.Set("Accept", "application/octet-stream")
 
 	resp2, err := client.Do(req2)

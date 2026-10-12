@@ -8,7 +8,7 @@ This document explains how to create and publish a Songloft plugin registry, so 
 
 A plugin registry is a JSON file containing a list of `plugin.json` URLs. Once a user adds your JSON URL under "Settings → JS Plugin Management → Plugin Store → Manage Subscriptions", they can see all the plugins in your registry and install them with one click.
 
-The backend automatically fetches each plugin's name, version, description, and other metadata from its `plugin.json` URL, so there's no need to duplicate that information in the registry file.
+The store automatically fetches each plugin's name, version, description, and other metadata from its `plugin.json` URL, so there's no need to duplicate that information in the registry file.
 
 Plugin registries support **nested references** (`includes`), letting you compose multiple standalone registries for decentralized plugin distribution.
 
@@ -39,7 +39,7 @@ Plugin registries support **nested references** (`includes`), letting you compos
 
 ### Automatic Resolution
 
-Each URL in `plugins` points to a `plugin.json` in a plugin repository. The backend automatically fetches and parses the following fields:
+Each URL in `plugins` points to a `plugin.json` in a plugin repository. The store automatically fetches and parses the following fields:
 
 - `name` — plugin name
 - `entryPath` — unique plugin identifier
@@ -51,7 +51,7 @@ Each URL in `plugins` points to a `plugin.json` in a plugin repository. The back
 - `updateUrl` — update check URL
 - `minHostVersion` — minimum host version
 
-If `plugin.json` does not contain a `download_url` (which is the case for most plugins), the backend automatically retrieves it from the `manifest.json` referenced by `updateUrl`.
+If `plugin.json` does not contain a `download_url` (which is the case for most plugins), the store automatically retrieves it from the `manifest.json` referenced by `updateUrl`.
 
 ---
 
@@ -214,6 +214,24 @@ Consequently:
 
 ---
 
+## Progressive Client Loading
+
+Flutter and Lynx fetch registries, recursive `includes` and plugin metadata from the client, updating the list as each plugin resolves rather than waiting for slower requests. At most eight requests run concurrently. Once the initial catalog completes, pages contain 20 entries, with search and pagination reusing a five-minute session cache. Explicit refresh reads the source configuration again and bypasses the cache; changing source or search cancels updates from the old listing.
+
+If refresh finds the selected source removed or disabled, it falls back to all enabled sources. Valid empty catalogs replace the old cache, so later searches do not resurrect deleted entries. After installing an early result, a later higher version still offers an update.
+
+Source settings and installed plugins still come from Songloft; installation and updates still run on the server. Web falls back to the existing server reader on CORS or connection failures. Native clients retain successful entries and report failed requests as warnings. The first result can usually appear earlier, while total time depends on client connectivity, source responses and whether Web needs fallback.
+
+## GitHub Discovery Token
+
+Flutter and Lynx provide a GitHub Token entry at the top of the GitHub discovery page, with save, replace, and clear actions. The token is stored on the connected Songloft server and read when the client enters the page or explicitly refreshes it. Discovery requests still originate from the client.
+
+- Settings endpoint: authenticated clients read and write `{ "token": "..." }` through `GET/PUT /api/v1/settings/github-discovery-token`. An unset token is empty; PUT with an empty string clears it. Responses must not be cached.
+- With a token, search and Release queries connect directly to `https://api.github.com` and authenticate through the Authorization header. Neither GitHub acceleration proxies nor public plugin metadata requests receive this token. Failed authenticated requests do not fall back to an acceleration proxy.
+- Without a token, discovery keeps its existing GitHub proxy and direct fallback behavior. Saving or clearing refreshes discovery results; invalid or expired tokens produce a specific message.
+
+This setting is separate from private registry tokens described below, and **the source's own token takes precedence**. When the store client requests the official GitHub API, it only uses the shared token if the request has no source token. The shared token is not used for raw metadata, third-party registries, server fallback or installation downloads. Once configured, the client must be able to access the official GitHub API.
+
 ## Private Registry Authentication
 
 Plugin registries support **Bearer Token authentication**, used to distribute closed-source plugins or to access plugins in private GitHub repositories.
@@ -225,7 +243,9 @@ When adding or editing a registry in the "Manage Subscriptions" dialog, simply f
 The token is sent as an `Authorization: Bearer <token>` header. Scoping rules:
 
 - **The registry JSON itself**, **all URLs in the plugins array**, and **ZIP downloads** — always carry the token
-- **Sub-registries referenced by includes** — carry the token only when they share the **same host** as the registry URL; cross-host includes do not carry the token (to prevent leaks)
+- **Sub-registries referenced by includes** — clients inherit the token only on the **same origin** (scheme, host and port); the compatible server reader checks the same host. Cross-origin includes do not inherit it
+
+Source tokens take precedence over the shared GitHub token. Authenticated metadata requests, server fallback reads and installation downloads bypass GitHub acceleration proxies; neither credential is sent to a prefix proxy. Clients only inherit source tokens for chained `updateUrl` metadata on the origin of the original manifest or configured source.
 
 As a result, a private registry can safely include public official or third-party registries without leaking the token to them. Meanwhile, private sub-registries on the same server (same-host includes) can still authenticate normally.
 
@@ -257,7 +277,7 @@ location /registry/ {
 ### Security Considerations
 
 - The token is stored in plaintext in the server's config table (this is a self-hosted app, within the user's control)
-- Sub-registries referenced by `includes` carry the token only on the **same host**; cross-host includes never leak the token
+- Clients only inherit tokens for same-origin `includes`; the compatible server reader checks the same host. Cross-origin includes do not inherit tokens
 - The token is sent via the `Authorization` request header and never appears in the URL, so it won't leak into logs or the Referrer
 
 ---
@@ -266,17 +286,18 @@ location /registry/ {
 
 | Limit | Value | Description |
 |------|-----|------|
-| Maximum total plugins | 500 | Excess entries are truncated and logged as a warning |
+| Maximum plugins per source | 500 | Excess entries are truncated and logged as a warning |
+| Maximum client registries | 512 per source | Excess registries are skipped with a warning |
 | Maximum recursion depth | 20 levels | `includes` beyond 20 levels are skipped |
 | Maximum size per JSON | 2 MB | Larger files are rejected |
 | Request timeout per URL | 15 seconds | On timeout, the URL is skipped (logged as a warning) |
 | Circular references | Auto-detected | A → B → A won't loop forever; already-visited URLs are automatically skipped |
-| Result cache | 5 minutes | Fetch results are cached server-side, so paging and searching in the store don't re-fetch the remote |
+| Result cache | 5 minutes | The client caches the complete catalog; server fallback is also cached, so search and pagination do not re-fetch remote data |
 
 - URLs in `plugins` must point to valid `plugin.json` files
 - **Remember to hit "Refresh" while iterating on a registry**: store paging and search both operate on the
-  complete list cached server-side, so after editing your registry files plain paging won't show the change.
+  complete cached list, so after editing your registry files plain paging won't show the change.
   The refresh button bypasses the cache and re-fetches (the cache also expires on its own after 5 minutes).
   Plugin install state is unaffected by the cache and is always computed live
-- If the registry file is hosted on GitHub, users in mainland China can select a GitHub mirror accelerator (preset or custom) in the Plugin Store, or configure a general proxy (e.g. `http://192.168.1.1:7890`) under "Settings → System → HTTP Proxy" to speed up access
+- Anonymous GitHub requests can use the configured GitHub mirror accelerator; authenticated requests go directly to the source. Client requests use the device's network. The server's HTTP proxy only affects server fallback reads and installation downloads, not client request routing
 - A failed fetch of one `includes` or `plugins` entry does not affect the loading of other registries and plugins

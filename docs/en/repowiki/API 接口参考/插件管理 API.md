@@ -415,6 +415,8 @@ Management endpoints are registered by `JSPluginHandler.RegisterRoutes`, and run
 
 ## 4. Registry Endpoints
 
+Flutter/Lynx normally fetch store metadata progressively from the client; the refresh endpoint below remains a compatible fallback for Web CORS or connection failures. Reads and installation downloads with source tokens bypass GitHub acceleration proxies. Authenticated `GET/PUT /api/v1/settings/github-discovery-token` reads/writes `{ "token": "..." }` (an empty string clears it; responses use `Cache-Control: no-store`). The shared token is only for direct client requests to the official API; source tokens win, and server fallback and installation do not use the shared token.
+
 ### 4.1 POST /jsplugins/registry/refresh -- Refresh Registry
 
 **Method:** `POST`

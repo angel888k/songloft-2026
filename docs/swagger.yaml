@@ -147,6 +147,11 @@ definitions:
       preset:
         type: string
     type: object
+  handlers.githubDiscoveryTokenSetting:
+    properties:
+      token:
+        type: string
+    type: object
   handlers.githubProxySetting:
     properties:
       proxy:
@@ -2741,7 +2746,7 @@ paths:
       consumes:
       - application/json
       description: |-
-        从注册表中的 download_url 下载 ZIP 并安装插件。如果 entry_path 已存在且属于同一作者，则自动走更新路径。支持 GitHub 代理（含 api.github.com 私有仓库 Release 资源的下载，代理端需开启 FORWARD_AUTHORIZATION_API 才会转发 token）。可选传入 token 字段用于从需要认证的私有源下载；若未提供 token 但提供了 source_url（「全部」聚合模式），后端会自动从 plugin_registries 配置解析该源存储的 token。
+        从注册表中的 download_url 下载 ZIP 并安装插件。如果 entry_path 已存在且属于同一作者，则自动走更新路径。匿名下载支持 GitHub 加速代理；携带 Token 的下载始终绕过加速代理，避免凭据泄漏。可选传入 token 字段用于从需要认证的私有源下载；若未提供 token 但提供了 source_url，后端会自动从 plugin_registries 配置解析该源存储的 token。
         若 entry_path 已被本地一个**不同作者**的插件占用，返回 409 且不做任何写入（不落盘、不动 static 目录、不改数据库）。前端应向用户说明会替换原插件后，带 overwrite=true 重发本请求。
       parameters:
       - description: 安装请求
@@ -2787,6 +2792,7 @@ paths:
         去重键为 entry_path + identity（identity = 规范化 author，author 为空时用 updateUrl 的 GitHub owner/repo 兜底）：entry_path 相同但作者不同的插件会各自成行，同一插件被多个源收录时仍只显示一条（保留高版本）。
         若某条目的 entry_path 已被本地一个**不同作者**的插件占用，返回 installed=false、conflict=true，并在 conflict_with 中描述占用者；此时安装该插件需要用户确认覆盖。
         拉取结果在服务端缓存 5 分钟：分页与搜索都在缓存的完整列表上做切片/过滤，不会重复拉取远端。传 force=true 绕过缓存强制重拉（供「刷新」按钮使用，翻页与搜索不要传）。安装状态（installed/has_update/conflict）不受缓存影响，每次请求都从数据库实时计算。
+        Flutter/Lynx 商店通常由客户端逐个拉取清单并渐进展示；此接口保留为 Web 跨域或网络失败的兼容回退。携带源 Token 的远端请求绕过 GitHub 加速代理，此接口不会读取共享的 GitHub 发现 Token。
       parameters:
       - description: 刷新请求
         in: body
@@ -4505,6 +4511,65 @@ paths:
       summary: 保存均衡器配置
       tags:
       - 设置
+  /settings/github-discovery-token:
+    get:
+      description: 返回服务器保存的完整 GitHub Token，供已登录客户端直接请求 GitHub API。未配置时 token 为空；服务器不代发发现请求。响应禁止缓存。
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: GitHub Token
+          schema:
+            $ref: '#/definitions/handlers.githubDiscoveryTokenSetting'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: 读取配置失败
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取 GitHub 发现 Token
+      tags:
+      - JS插件管理
+    put:
+      consumes:
+      - application/json
+      description: 将 GitHub Token 保存到服务器配置，供各客户端共用。token 必填，空字符串表示清除；去掉首尾空白，内部只接受
+        ASCII 字母、数字和下划线，最长 512 字节。立即生效，无需预先创建配置；响应禁止缓存。
+      parameters:
+      - description: GitHub Token，空字符串表示清除
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.githubDiscoveryTokenSetting'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 保存后的 Token
+          schema:
+            $ref: '#/definitions/handlers.githubDiscoveryTokenSetting'
+        "400":
+          description: 请求格式或 Token 格式错误
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: 保存配置失败
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 保存 GitHub 发现 Token
+      tags:
+      - JS插件管理
   /settings/github-proxy:
     get:
       description: 获取检查更新 / 升级时使用的 GitHub 代理前缀（如 https://ghfast.top/）。前端会记住上次使用的代理并在检查更新时自动带上。未配置时返回空字符串（直连）。

@@ -1461,7 +1461,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "从注册表中的 download_url 下载 ZIP 并安装插件。如果 entry_path 已存在且属于同一作者，则自动走更新路径。支持 GitHub 代理（含 api.github.com 私有仓库 Release 资源的下载，代理端需开启 FORWARD_AUTHORIZATION_API 才会转发 token）。可选传入 token 字段用于从需要认证的私有源下载；若未提供 token 但提供了 source_url（「全部」聚合模式），后端会自动从 plugin_registries 配置解析该源存储的 token。\n若 entry_path 已被本地一个**不同作者**的插件占用，返回 409 且不做任何写入（不落盘、不动 static 目录、不改数据库）。前端应向用户说明会替换原插件后，带 overwrite=true 重发本请求。",
+                "description": "从注册表中的 download_url 下载 ZIP 并安装插件。如果 entry_path 已存在且属于同一作者，则自动走更新路径。匿名下载支持 GitHub 加速代理；携带 Token 的下载始终绕过加速代理，避免凭据泄漏。可选传入 token 字段用于从需要认证的私有源下载；若未提供 token 但提供了 source_url，后端会自动从 plugin_registries 配置解析该源存储的 token。\n若 entry_path 已被本地一个**不同作者**的插件占用，返回 409 且不做任何写入（不落盘、不动 static 目录、不改数据库）。前端应向用户说明会替换原插件后，带 overwrite=true 重发本请求。",
                 "consumes": [
                     "application/json"
                 ],
@@ -1524,7 +1524,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "拉取订阅源（含递归 includes），去重合并后返回分页的可用插件列表。每个插件标注是否已安装及是否有更新。默认拉取单个 registry_url，可选传入 token 字段访问需要认证的私有源（如 GitHub 私有仓库 PAT）。当 all_sources=true 时忽略 registry_url/token，改为聚合已保存的所有启用订阅源（各源用自身存储的 token）。\n去重键为 entry_path + identity（identity = 规范化 author，author 为空时用 updateUrl 的 GitHub owner/repo 兜底）：entry_path 相同但作者不同的插件会各自成行，同一插件被多个源收录时仍只显示一条（保留高版本）。\n若某条目的 entry_path 已被本地一个**不同作者**的插件占用，返回 installed=false、conflict=true，并在 conflict_with 中描述占用者；此时安装该插件需要用户确认覆盖。\n拉取结果在服务端缓存 5 分钟：分页与搜索都在缓存的完整列表上做切片/过滤，不会重复拉取远端。传 force=true 绕过缓存强制重拉（供「刷新」按钮使用，翻页与搜索不要传）。安装状态（installed/has_update/conflict）不受缓存影响，每次请求都从数据库实时计算。",
+                "description": "拉取订阅源（含递归 includes），去重合并后返回分页的可用插件列表。每个插件标注是否已安装及是否有更新。默认拉取单个 registry_url，可选传入 token 字段访问需要认证的私有源（如 GitHub 私有仓库 PAT）。当 all_sources=true 时忽略 registry_url/token，改为聚合已保存的所有启用订阅源（各源用自身存储的 token）。\n去重键为 entry_path + identity（identity = 规范化 author，author 为空时用 updateUrl 的 GitHub owner/repo 兜底）：entry_path 相同但作者不同的插件会各自成行，同一插件被多个源收录时仍只显示一条（保留高版本）。\n若某条目的 entry_path 已被本地一个**不同作者**的插件占用，返回 installed=false、conflict=true，并在 conflict_with 中描述占用者；此时安装该插件需要用户确认覆盖。\n拉取结果在服务端缓存 5 分钟：分页与搜索都在缓存的完整列表上做切片/过滤，不会重复拉取远端。传 force=true 绕过缓存强制重拉（供「刷新」按钮使用，翻页与搜索不要传）。安装状态（installed/has_update/conflict）不受缓存影响，每次请求都从数据库实时计算。\nFlutter/Lynx 商店通常由客户端逐个拉取清单并渐进展示；此接口保留为 Web 跨域或网络失败的兼容回退。携带源 Token 的远端请求绕过 GitHub 加速代理，此接口不会读取共享的 GitHub 发现 Token。",
                 "consumes": [
                     "application/json"
                 ],
@@ -4533,6 +4533,98 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "请求格式错误",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "保存配置失败",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/settings/github-discovery-token": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "返回服务器保存的完整 GitHub Token，供已登录客户端直接请求 GitHub API。未配置时 token 为空；服务器不代发发现请求。响应禁止缓存。",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "JS插件管理"
+                ],
+                "summary": "获取 GitHub 发现 Token",
+                "responses": {
+                    "200": {
+                        "description": "GitHub Token",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.githubDiscoveryTokenSetting"
+                        }
+                    },
+                    "401": {
+                        "description": "未登录",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "读取配置失败",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "将 GitHub Token 保存到服务器配置，供各客户端共用。token 必填，空字符串表示清除；去掉首尾空白，内部只接受 ASCII 字母、数字和下划线，最长 512 字节。立即生效，无需预先创建配置；响应禁止缓存。",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "JS插件管理"
+                ],
+                "summary": "保存 GitHub 发现 Token",
+                "parameters": [
+                    {
+                        "description": "GitHub Token，空字符串表示清除",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.githubDiscoveryTokenSetting"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "保存后的 Token",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.githubDiscoveryTokenSetting"
+                        }
+                    },
+                    "400": {
+                        "description": "请求格式或 Token 格式错误",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "未登录",
                         "schema": {
                             "$ref": "#/definitions/models.ErrorResponse"
                         }
@@ -10242,6 +10334,14 @@ const docTemplate = `{
                     "type": "boolean"
                 },
                 "preset": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.githubDiscoveryTokenSetting": {
+            "type": "object",
+            "properties": {
+                "token": {
                     "type": "string"
                 }
             }

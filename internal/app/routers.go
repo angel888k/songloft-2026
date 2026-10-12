@@ -250,6 +250,8 @@ func (a *App) setupAPIV1Router() {
 			r.Get("/logs/export", logExportHandler.ExportLogs)
 			r.Get("/settings/plugin-registries", jsPluginHandler.GetRegistriesSetting)
 			r.Put("/settings/plugin-registries", jsPluginHandler.UpdateRegistriesSetting)
+			r.Get("/settings/github-discovery-token", jsPluginHandler.GetGithubDiscoveryTokenSetting)
+			r.Put("/settings/github-discovery-token", jsPluginHandler.UpdateGithubDiscoveryTokenSetting)
 			r.Get("/settings/http-proxy", jsPluginHandler.GetHttpProxySetting)
 			r.Put("/settings/http-proxy", jsPluginHandler.UpdateHttpProxySetting)
 			r.Get("/settings/github-proxy", upgradeHandler.GetGithubProxySetting)

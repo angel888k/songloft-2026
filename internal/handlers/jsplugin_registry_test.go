@@ -2,9 +2,8 @@ package handlers
 
 import (
 	"context"
-	"encoding/json"
+	"io"
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 
@@ -53,32 +52,35 @@ func TestApplyGithubProxy(t *testing.T) {
 	}
 }
 
-func TestDownloadGitHubReleaseAsset_ThroughProxy(t *testing.T) {
+type registryRoundTripperFunc func(*http.Request) (*http.Response, error)
+
+func (f registryRoundTripperFunc) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
+
+func TestDownloadGitHubReleaseAsset_TokenBypassesProxy(t *testing.T) {
 	const token = "secret-pat"
 	var gotAuthHeaders []string
 
-	proxy := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	client := &http.Client{Transport: registryRoundTripperFunc(func(r *http.Request) (*http.Response, error) {
 		gotAuthHeaders = append(gotAuthHeaders, r.Header.Get("Authorization"))
+		if r.URL.Scheme != "https" || r.URL.Host != "api.github.com" {
+			t.Errorf("credential sent outside official GitHub API: %s", r.URL)
+		}
 
 		// 代理路径形如 /https://api.github.com/repos/owner/repo/releases/tags/v1
-		path := strings.TrimPrefix(r.URL.Path, "/")
+		path := r.URL.Path
+		var body string
 		switch {
 		case strings.Contains(path, "/releases/tags/v1"):
-			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode(map[string]any{
-				"assets": []map[string]any{
-					{"id": 42, "name": "plugin.jsplugin.zip"},
-				},
-			})
+			body = `{"assets":[{"id":42,"name":"plugin.jsplugin.zip"}]}`
 		case strings.Contains(path, "/releases/assets/42"):
-			w.Write([]byte("ZIPDATA"))
+			body = "ZIPDATA"
 		default:
-			http.NotFound(w, r)
+			t.Fatalf("unexpected URL: %s", r.URL)
 		}
-	}))
-	defer proxy.Close()
+		return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(body)), Header: http.Header{}}, nil
+	})}
 
-	data, err := downloadGitHubReleaseAsset(context.Background(), "owner", "repo", "v1", "plugin.jsplugin.zip", token, proxy.URL)
+	data, err := downloadGitHubReleaseAssetWithClient(context.Background(), client, "owner", "repo", "v1", "plugin.jsplugin.zip", token, "https://proxy.invalid/")
 	if err != nil {
 		t.Fatalf("downloadGitHubReleaseAsset() error = %v", err)
 	}
@@ -86,7 +88,7 @@ func TestDownloadGitHubReleaseAsset_ThroughProxy(t *testing.T) {
 		t.Fatalf("data = %q, want ZIPDATA", data)
 	}
 	if len(gotAuthHeaders) != 2 {
-		t.Fatalf("expected 2 upstream requests through proxy, got %d", len(gotAuthHeaders))
+		t.Fatalf("expected 2 direct upstream requests, got %d", len(gotAuthHeaders))
 	}
 	for _, h := range gotAuthHeaders {
 		if h != "Bearer "+token {
@@ -96,13 +98,11 @@ func TestDownloadGitHubReleaseAsset_ThroughProxy(t *testing.T) {
 }
 
 func TestDownloadGitHubReleaseAsset_AssetNotFound(t *testing.T) {
-	proxy := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]any{"assets": []map[string]any{}})
-	}))
-	defer proxy.Close()
+	client := &http.Client{Transport: registryRoundTripperFunc(func(r *http.Request) (*http.Response, error) {
+		return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(`{"assets":[]}`)), Header: http.Header{}}, nil
+	})}
 
-	_, err := downloadGitHubReleaseAsset(context.Background(), "owner", "repo", "v1", "missing.zip", "tok", proxy.URL)
+	_, err := downloadGitHubReleaseAssetWithClient(context.Background(), client, "owner", "repo", "v1", "missing.zip", "tok", "https://proxy.invalid/")
 	if err == nil {
 		t.Fatal("expected error for missing asset, got nil")
 	}

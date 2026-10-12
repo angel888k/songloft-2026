@@ -325,6 +325,7 @@ func (s *RegistryService) fetchJSON(ctx context.Context, url string, githubProxy
 func (s *RegistryService) fetchBody(ctx context.Context, rawURL string, githubProxy string, token string, proxyDown *atomic.Bool) ([]byte, error) {
 	var header http.Header
 	if token != "" {
+		githubProxy = ""
 		header = http.Header{"Authorization": []string{"Bearer " + token}}
 	}
 
