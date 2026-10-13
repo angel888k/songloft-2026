@@ -3,6 +3,7 @@
 This document provides AI coding assistants with the **entry-point information** for the Songloft project: project structure, common commands, hard rules, and a summary of pitfalls. For content where the code itself is the source of truth (directory tree, dependencies, API tables, table schemas), read the code directly or the detailed docs linked below.
 
 > **Detailed docs**:
+> - AI development: [Workflow and retrospectives](docs/en/ai-development.md) · [Lessons](LESSONS.en.md)
 > - Architecture: [Overview](docs/architecture.md) · [Backend](docs/architecture_backend.md) · [Frontend](docs/architecture_frontend.md)
 > - Topics: [Database operations](docs/database_migrations.md) · [Color system](docs/color_system.md) · [API response format](docs/api_response.md) · [Quick start](docs/quick-start.md) · [Frontend gotchas](docs/en/frontend_gotchas.md)
 > - Plugin development: see `plugins/toolchain/README.md` (separate repo)
@@ -36,6 +37,13 @@ Songloft is a self-hosted local music server that supports both **server deploym
 - The parent repository documents backend implementation, shared host capabilities, interface contracts, and conventions used across repositories.
 - Each submodule keeps its business implementation, device compatibility, historical issues, regression matrix, and dedicated validation commands in its own root `AGENTS.md`, with a synchronized `AGENTS.en.md`.
 - Read local instructions before editing a submodule, and check the parent instructions when host interfaces are involved. Commit the submodule before updating its pointer in the parent.
+
+## AI Development Workflow
+
+- Once assigned a task, investigate, implement, validate, review, and deliver continuously without separate stage approvals. Ask for essential missing information, product decisions, or scope expansion. Commits, pushes, formal releases, and Issue writes follow distinct authorization; do not ask again for already authorized actions.
+- Read applicable `LESSONS.md` entries before work and record evidence-backed lessons afterward, synchronizing English/Chinese. Three independent events on distinct dates make promotion candidates; re-reviewing one incident does not increase counts. Existing hard rules apply immediately.
+- Unresolved Issue triage includes parent and all submodules, with recursive discovery, deduplication, and full pagination. Use `owner/repo#number` and report gaps; assess bodies, all comments, current code, and validation rather than treating open status as proof of an unfixed bug.
+- Bind validation to repository, SHA or uncommitted-worktree fingerprint, environment, commands, and results; list relevant `Not run` checks. Changes require rerunning affected checks; follow required CI for the same SHA, and never count cancelled/skipped as passed. See the [AI workflow](docs/en/ai-development.md).
 
 ## Common Commands
 

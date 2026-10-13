@@ -3,6 +3,7 @@
 本文件为 AI 编程助手提供 Songloft 项目的**入口信息**：项目结构、常用命令、铁律与踩坑总结。代码本身就是真实来源的内容（目录树、依赖、API 表、表结构）请直接看代码或下方链接的详细文档。
 
 > **详细文档**：
+> - AI 开发：[流程与复盘](docs/ai-development.md) · [经验记录](LESSONS.md)
 > - 架构：[整体](docs/architecture.md) · [后端](docs/architecture_backend.md) · [前端](docs/architecture_frontend.md)
 > - 专题：[数据库操作](docs/database_migrations.md) · [颜色系统](docs/color_system.md) · [API 响应格式](docs/api_response.md) · [快速上手](docs/quick-start.md) · [前端踩坑与铁律](docs/frontend_gotchas.md)
 > - 插件开发：见 `plugins/toolchain/README.md`（独立仓库）
@@ -36,6 +37,13 @@ Songloft 是自托管本地音乐服务器，支持**服务器部署**和**Bundl
 - 主仓库记录后端实现、公共宿主能力、接口契约及跨仓库通用约定。
 - 子模块的业务实现、设备兼容、历史问题、回归矩阵与专属验证命令写在各自仓库根目录的 `AGENTS.md`，同步维护 `AGENTS.en.md`。
 - 修改子模块前先读取其本地规范；涉及宿主接口时同时核对主仓库的通用规范。子模块提交完成后，再在主仓库更新指针。
+
+## AI 开发流程
+
+- 任务交办后连续完成调查、实现、验证、自审和交付，不逐阶段确认；关键缺失信息、产品决定或扩大范围才询问。提交、推送、正式发布和 Issue 写操作分别按用户授权，已有授权不重复询问。
+- 开始前读适用的 `LESSONS.md`，结束记录有证据的新经验并同步英文。三个不同日期的独立事件提出规范升级，同一事故重复复盘不递增；已有铁律立即执行。
+- 排查未解决 Issue 包含主仓库和全部子模块，递归发现、去重、完整分页。统一 `owner/repo#编号`，缺口明确报告；结合正文、全部评论、最新代码与验证判断，不把 open 当未修复证明。
+- 验证绑定仓库、SHA 或未提交工作树标识、环境、命令和结果；相关未跑项写 `Not run`。代码/子模块变化重跑受影响检查；追踪同一 SHA 的必要 CI，取消/跳过不算通过。详见 [AI 开发流程](docs/ai-development.md)。
 
 ## 常用命令
 

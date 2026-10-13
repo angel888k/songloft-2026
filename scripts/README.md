@@ -15,6 +15,20 @@
 | `generate-icons.sh` | 从 `favicon.svg` 生成项目所需的所有 PNG/ICO 图标（依赖 Node.js 18+） |
 | `fetch-issues.mjs` / `sync-docs.mjs` | 文档同步辅助 |
 | `test_tag.sh` | `pkg/tag` 命令行工具的手工冒烟脚本 |
+| `ai-review-context.mjs` | 只读收集主仓库和递归子模块的清单、开放 Issues、提交与工作树标识；不完整时写报告并退出 1 |
+
+## AI 开发取证
+
+需要 Node.js 22+、Git；Issues 模式需要已登录的 `gh`。在父仓库执行，输出用工作树外的唯一文件名，已有文件不会覆盖：
+
+```bash
+node scripts/ai-review-context.mjs inventory --output /tmp/songloft-inventory-20261013-01.json
+node scripts/ai-review-context.mjs issues --output /tmp/songloft-issues-20261013-01.json
+node scripts/ai-review-context.mjs commits --since 2026-10-12T00:00:00+08:00 --until 2026-10-13T00:00:00+08:00 --output /tmp/songloft-review-20261013-01.json
+node --test scripts/tests/ai-review-context.test.mjs
+```
+
+Issues 完整分页、排除 PR、保留负责人，按仓库去重。未初始化子模块仍查 Issues，但其嵌套清单未知时报告缺口。`complete=false` / 退出码 1 表示未全覆盖，不能当零待办。commits 只读本地历史，不证明远端同步；收集结果也不自动判定修复、更新经验或调度 AI。完整流程见 [AI 开发与复盘](../docs/ai-development.md)。
 
 ## 🚀 发布流程
 

@@ -15,6 +15,20 @@ This directory contains automation scripts for the Songloft backend, covering ve
 | `generate-icons.sh` | Generates all PNG/ICO icons from `favicon.svg` (requires Node.js 18+) |
 | `fetch-issues.mjs` / `sync-docs.mjs` | Documentation sync helpers |
 | `test_tag.sh` | Manual smoke-test script for the `pkg/tag` command-line tools |
+| `ai-review-context.mjs` | Read-only parent/recursive-submodule inventory, open Issues, commits, and worktree fingerprints; writes partial reports and exits 1 for gaps |
+
+## AI Development Evidence
+
+Requires Node.js 22+, Git, and authenticated `gh` for Issues. Run from the parent with unique output filenames outside the worktree; existing files are never overwritten:
+
+```bash
+node scripts/ai-review-context.mjs inventory --output /tmp/songloft-inventory-20261013-01.json
+node scripts/ai-review-context.mjs issues --output /tmp/songloft-issues-20261013-01.json
+node scripts/ai-review-context.mjs commits --since 2026-10-12T00:00:00+08:00 --until 2026-10-13T00:00:00+08:00 --output /tmp/songloft-review-20261013-01.json
+node --test scripts/tests/ai-review-context.test.mjs
+```
+
+Issues are fully paginated, exclude PRs, retain assignees, and deduplicate repositories. Uninitialized modules still have Issues queried, but unknown nested manifests produce gaps. `complete=false` / exit 1 means incomplete coverage, not an empty backlog. Commits use local history without establishing remote freshness. Collection does not assess fixes, update lessons, or schedule an AI. See the [AI workflow](../docs/en/ai-development.md).
 
 ## 🚀 Release Workflow
 
