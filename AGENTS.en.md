@@ -743,13 +743,13 @@ Currently only the miot plugin uses it (settings page "volume normalization" tog
   "start the stream at second N" is exactly `StreamSeekedMP3`'s `-ss` input seek. Range requests are
   therefore **genuinely** satisfied rather than papered over by "ignore Range, resend from the start"
   (which would desync the progress bar from the actual audio)
-- **Four preconditions for enabling Range, all required** (see `planCBRRange`): `song.Duration > 0`
-  (an unknown duration makes the total size unknowable, which is routine for remote tracks whose
-  metadata hasn't been refreshed), re-encoding rather than `-c:a copy` (a copy source may be VBR mp3,
-  where bytes and time aren't linear — guaranteed by `ForceTranscode`), no speed change (atempo alters
-  the output duration, requiring a second layer of conversion), and no `?seek=` (that's a separate
-  position mechanism for push-streaming clients; combining them only causes interference). When unmet,
-  fall back to chunked with no length
+- **Use `planCBRRange` as the source of truth for Range eligibility**: a known track duration no greater
+  than 24 hours, no speed change, and positive duration remaining after seek. `?seek=N` **can be combined
+  with Range**: the total size is estimated from the remaining duration, Range addresses bytes within
+  this new stream, and ffmpeg starts at `N + Range offset / bytes per second` (songloft-org/songloft#488).
+  Do not restore the old "seek disables Range" restriction; speakers need Content-Length and 206 for
+  segmented buffering. Copying VBR MP3 still introduces estimation error; `exactLengthWriter` guarantees
+  response byte count, not exact audio timing or frame alignment. Otherwise fall back to chunked with no length
 - **Promising a `Content-Length` means writing exactly that many bytes** (`exactLengthWriter`):
   ffmpeg's actual output never exactly equals "bitrate × duration" — LAME's CBR uses frame padding to
   track the target bitrate, the last frame may be partial, and `-ss` only aligns to frame boundaries,
@@ -787,10 +787,10 @@ Currently only the miot plugin uses it (settings page "volume normalization" tog
 
 ### Server-side seek stream (`/songs/{id}/play?seek=<seconds>`)
 
-Exists to express a resume position for push-style clients that can only pull a URL from the
-beginning and don't support HTTP Range. A Xiaomi speaker handed a URL via `player_play_url` can
-only play from the start of the stream, so "resume at second N" can only be expressed by having
-the server produce a stream that **begins at second N** (songloft-org/songloft-plugin-miot#60:
+Expresses a resume position for URL-push clients. A Xiaomi speaker handed a URL via `player_play_url`
+plays from the start of the stream. Its firmware does send Range for segmented buffering, but the
+plugin still expresses "resume at second N" with a new URL, having the server produce a stream that
+**begins at second N** (songloft-org/songloft-plugin-miot#60:
 firmware ignores pause → escalate to stop → device-side media context is lost → resuming can
 only re-push the URL). Implemented in `internal/services/seek_stream.go`, structurally identical
 to `radio_transcode.go` (`Peek(1)` confirms real output before committing the response,
@@ -830,13 +830,47 @@ otherwise a sentinel error lets the handler degrade losslessly to serving the wh
   5-minute mark while the response closes normally and the client thinks playback finished.
   `duration == 0` is a normal occurrence (remote song metadata not yet refreshed; a local file
   where neither the tag nor ffprobe yields a duration)
-- The response is chunked: no `Content-Length`, no `Accept-Ranges`, `Cache-Control: no-store`
+- With a known duration, no speed change, and the other `planCBRRange` prerequisites met, responses
+  include `Content-Length` / `Accept-Ranges: bytes` and can return 206 for partial requests. Only other
+  cases use chunked responses with no length. Both use `Cache-Control: no-store`
 - Plugin-side counterpart: `PlaylistManager.streamSeekOffsetSec` remembers where the current
   stream starts. To the device a seek stream is "a new stream starting at 0", so the
   `play_song_detail.position` it reports is only an in-stream offset and **every consumer must
-  add the offset back** (`resolvePlayerStatus` in `handlers/playlist.ts`, `resetAutoNextTimer` in
-  `voicecmd/engine.ts`), otherwise the web progress bar drops back to 0 after resuming and
+  add the offset back** (`resolvePlayerStatus` in `handlers/playlist.ts`, recovery decisions in
+  `playback/voice_resume.ts`), otherwise the web progress bar drops back to 0 after resuming and
   auto-advance is delayed by a whole seek duration
+
+### MIoT resume and replay: historical regression constraints (songloft-org/songloft#516)
+
+- **The same symptom can have different causes**: search all issues in both the parent and plugin
+  repositories, then cross-check relevant bodies, comments, fix commits, and existing tests. Include
+  parent #171/#404/#408/#449/#481/#488/#490/#495/#500/#503/#514 and
+  `songloft-org/songloft-plugin-miot#54/#60/#61/#63/#87/#88/#95/#96` at minimum. A closed issue does not
+  rule out a regression. Distinguish code defects from unpublished fixes, outdated plugins, and old ffmpeg images.
+- **Local clock drift alone must not trigger a URL repush**: buffering can put the speaker behind;
+  status 0/2 can also be wrong (#449). Automatic recovery identifies replay using matching media,
+  advancing fresh samples, and at least one sample within the first three stream seconds that is
+  significantly behind the saved position. Convert stream seconds with `position * speed + seekOffset`
+  first. Unknown media identity, duplicate cache samples, and samples from before the interaction cannot prove replay.
+- **A reset counter must not overwrite the saved position**: voice tasks retain the interruption
+  anchor; paused/stopped readbacks cannot move it back to zero. `resetAutoNextTimer` is shared by
+  HTTP/WS status fusion and smart resume, and must reject counter-reset calibration while suspended.
+  Fixing only `VoiceResumeCoordinator` leaves status polling free to overwrite the position, increment
+  the revision, and cancel recovery (#171).
+- **New operations win and track-transition rules stay consistent**: check task identity and playback
+  revision after every await. Late results cannot restore an old track after pause, stop, next, a new
+  dialogue, or DLNA takeover (#408/#494). Normal resume must rebuild the remaining-time timer and keep
+  `transitionOffset` / speed (#404, plugin #87/#88). Restart detection must not replace tail completion
+  verification (#481/#495). Automatic recovery near the end uses a safe integer second before the tail
+  guard, preventing seek rejection from replaying the entire track.
+- **Evidence and verification**: compare request `range`, response `content_range/content_length`, and
+  actual `bytes` in access logs. Neither 206 nor repeated GET proves full reloading, and downloaded bytes
+  are not listening progress. Inspect complete ffmpeg `error/output`; in-app upgrades do not update
+  ffmpeg inside the image (#403). Run plugin `player_failures`, `player_status`, `player_transition`,
+  `mina_status`, frontend slider/status tests, and backend playback/Range/timer tests. On Node 22 use
+  `node --experimental-strip-types --test tests/*.test.mjs`; do not omit tests that import TS directly.
+  Automated success only establishes covered scenarios. Record real-speaker, problem-audio, and long-running
+  acceptance separately; do not claim these are complete without evidence.
 
 ### Song persistence (song_downloader — plugin infrastructure)
 

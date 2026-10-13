@@ -24,7 +24,7 @@ type slogLogEntry struct {
 	start time.Time
 }
 
-func (e *slogLogEntry) Write(status, bytes int, _ http.Header, elapsed time.Duration, _ any) {
+func (e *slogLogEntry) Write(status, bytes int, header http.Header, elapsed time.Duration, _ any) {
 	attrs := []any{
 		"method", e.req.Method,
 		"path", e.req.URL.Path,
@@ -32,6 +32,21 @@ func (e *slogLogEntry) Write(status, bytes int, _ http.Header, elapsed time.Dura
 		"bytes", bytes,
 		"dur_ms", float64(elapsed.Microseconds()) / 1000.0,
 		"remote", e.req.RemoteAddr,
+	}
+
+	// 记录字节区间与声明长度，区分分段读取、从头重拉及客户端提前断开。
+	// 不记录 URL 查询串，其中可能包含播放器认证 token。
+	for _, field := range []struct {
+		name  string
+		value string
+	}{
+		{"range", e.req.Header.Get("Range")},
+		{"content_range", header.Get("Content-Range")},
+		{"content_length", header.Get("Content-Length")},
+	} {
+		if field.value != "" {
+			attrs = append(attrs, field.name, field.value)
+		}
 	}
 	if reqID := chi_middleware.GetReqID(e.req.Context()); reqID != "" {
 		attrs = append(attrs, "request_id", reqID)

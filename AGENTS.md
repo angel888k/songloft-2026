@@ -661,10 +661,11 @@ EBU R128 响度均衡（songloft-org/songloft#315），消除不同音源之间�
   配合已知的 `song.duration` 即可给出总长度与任意偏移对应的秒数；而「从第 N 秒起流」正是
   `StreamSeekedMP3` 的 `-ss` input seek。于是 Range 被**真正**满足，而不是「忽略 Range 从头重发」
   （那会让进度条与实际声音错位）
-- **启用 Range 的四个前提，缺一不可**（见 `planCBRRange`）：`song.Duration > 0`（时长未知就估不出
-  总字节，远程歌曲元数据未刷新时是常态）、必须重编码而非 `-c:a copy`（copy 的源可能是 VBR mp3，
-  字节与时间不成线性；由 `ForceTranscode` 保证）、不变速（atempo 改变输出时长，要再套一层换算）、
-  无 `?seek=`（那是给推流客户端的另一套位置语义，叠加只会互相干扰）。不满足时退回 chunked 无长度
+- **Range 前提以 `planCBRRange` 为准**：歌曲时长已知且不超过 24 小时、不变速、seek 后剩余时长 > 0。
+  `?seek=N` **可以与 Range 组合**：总长度按剩余时长估算，Range 是这条新流的字节偏移，
+  ffmpeg 起点为 `N + Range 偏移 / 每秒字节数`（songloft-org/songloft#488）。不要重新加回「有 seek 就禁用
+  Range」的旧限制；音箱需要 Content-Length 与 206 做分段缓冲。copy VBR MP3 的估算仍有偏差，
+  `exactLengthWriter` 仅保证应答字节数，不代表音频时间或帧边界完全精确。不满足前提时退回 chunked 无长度
 - **承诺了 `Content-Length` 就必须写够写准**（`exactLengthWriter`）：ffmpeg 的实际输出量不会精确等于
   「码率 × 时长」——LAME 的 CBR 靠帧 padding 贴合码率、末尾可能是不完整帧、`-ss` 只能对齐到帧边界，
   累计误差在几帧内。写少了客户端当作连接提前断开，写多了违反 HTTP/1.1 长度契约，所以超出截断、
@@ -691,8 +692,8 @@ EBU R128 响度均衡（songloft-org/songloft#315），消除不同音源之间�
 
 ### 服务端 seek 流（`/songs/{id}/play?seek=<秒>`）
 
-给「只会从头拉 URL、不支持 HTTP Range」的推流客户端表达续播位置用。小爱音箱经
-`player_play_url` 拿到 URL 后只能从流的开头播，所以「从第 N 秒续播」只能由服务端产出一条
+给 URL 推流客户端表达续播位置用。小爱音箱经 `player_play_url` 拿到 URL 后从流的开头播，
+固件虽会发 Range 做分段缓冲，插件仍需通过新 URL 表达「从第 N 秒续播」，由服务端产出一条
 **以第 N 秒为开头**的流（songloft-org/songloft-plugin-miot#60：暂停被固件忽略 → 升级 stop →
 设备端媒体上下文丢失 → 续播只能重推 URL）。实现在 `internal/services/seek_stream.go`，
 骨架与 `radio_transcode.go` 同构（`Peek(1)` 确认有输出才提交响应，否则返回哨兵错误让
@@ -719,11 +720,35 @@ handler 无损降级为从头 `ServeFile`）。
 - **剩余时长未知（`songs.duration == 0`）时硬超时不能退化成 5 分钟**（见 `seekStreamUnknownDurationTimeout`）：
   对整首流那不是宽限而是硬上限，客户端边播边读会在第 5 分钟被杀掉，而响应正常闭合、客户端以为播完了。
   `duration == 0` 是常态（远程歌曲元数据未刷新、本地文件 tag 与 ffprobe 都拿不到时长）
-- 响应是 chunked：无 `Content-Length`、不设 `Accept-Ranges`、`Cache-Control: no-store`
+- 已知时长、不变速且满足 `planCBRRange` 前提时返回 `Content-Length` / `Accept-Ranges: bytes`，
+  分段请求可返回 206；其他情况才是 chunked 无长度。两者均使用 `Cache-Control: no-store`
 - 插件侧配套：`PlaylistManager.streamSeekOffsetSec` 记住当前流的起点。带 seek 的流对设备是
   「从 0 开始的新流」，它上报的 `play_song_detail.position` 只是流内偏移，**消费点必须补上偏移**
-  （`handlers/playlist.ts` 的 `resolvePlayerStatus`、`voicecmd/engine.ts` 的 `resetAutoNextTimer`），
+  （`handlers/playlist.ts` 的 `resolvePlayerStatus`、`playback/voice_resume.ts` 的恢复判断），
   否则续播后网页进度条会掉回 0、自动切歌被推迟一整个 seek 时长
+
+### MIoT 续播与重播：历史回归约束（songloft-org/songloft#516）
+
+- **相同现象不等于相同根因**：排查先检索父仓库和插件仓库的全部 Issue，再对相关正文、评论、
+  修复提交与现有测试交叉核对。至少覆盖父仓库 #171/#404/#408/#449/#481/#488/#490/#495/#500/#503/#514，
+  及 `songloft-org/songloft-plugin-miot#54/#60/#61/#63/#87/#88/#95/#96`。
+  不因旧 Issue 已关闭就认为没有回归，也不要把未发布、未更新插件或旧 ffmpeg 镜像当成代码修复无效。
+- **不能仅凭本地计时超前就重推**：缓冲会让音箱位置落后；状态 0/2 也可能误报（#449）。
+  自动恢复检测重播需同曲身份、连续新采样推进，以及至少一份采样落在流开头三秒且明显落后保存位置。
+  判断前把流内秒换为 `position * speed + seekOffset`。身份未知、重复缓存或交互前采样不能证明重播。
+- **保存位置不被暂停后的归零覆盖**：语音任务保存打断锚点，暂停/停止读回值不能把它回拨到 0。
+  `resetAutoNextTimer` 是 HTTP/WS 状态融合与智能续播共用入口，必须挡住挂起期间的回零校准；
+  只修 `VoiceResumeCoordinator` 会被状态轮询抢先改写位置、递增版本并取消任务（#171）。
+- **新操作优先，切歌规则不漂移**：每次 await 后核对任务身份和播放版本；暂停、停止、下一首、
+  新对话及 DLNA 接管后，迟到结果不得恢复旧歌曲（#408/#494）。正常续播必须重建剩余时间定时器，
+  保留 `transitionOffset` / speed（#404、插件 #87/#88）；重播检测不能替代尾部结束校验（#481/#495）。
+  自动恢复临近结尾时使用保护区前的安全整数秒，不能让 seek 守卫退化为整首重播。
+- **取证与验证**：访问日志比较请求 `range`、响应 `content_range/content_length` 与实际 `bytes`；
+  206 或重复 GET 本身不能证明全量重拉，下载字节也不是已听进度。ffmpeg 失败看完整 `error/output`；
+  应用内升级不更新镜像里的 ffmpeg（#403）。回归必须运行插件 `player_failures`、`player_status`、
+  `player_transition`、`mina_status`、前端 slider/status 测试，及后端播放/Range/定时器测试。
+  Node 22 用 `node --experimental-strip-types --test tests/*.test.mjs`，不能漏掉直接导入 TS 的测试。
+  自动化通过只证明覆盖的场景；真实音箱、问题音频与长期运行验收须单独记录，不能宣称已完成。
 
 ### 歌曲持久化（song_downloader — 插件基础设施）
 

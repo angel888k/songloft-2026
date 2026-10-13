@@ -897,6 +897,47 @@ func TestGetSongPlaySeekFallsBackToWholeFile(t *testing.T) {
 	}
 }
 
+// TestGetSongPlayRepeatedRangesStayByteBased 防止把同设备的重复 Range 读取
+// 当成播放进度：音箱可能预读整首，也可能重新播放，服务端必须遵守当前请求的字节区间。
+func TestGetSongPlayRepeatedRangesStayByteBased(t *testing.T) {
+	handler, repo, _ := newSeekTestHandler(t, "")
+	src := writeSeekTestFile(t, "song.mp3")
+	id := seedSong(t, repo, &models.Song{Type: models.TypeLocal, Title: "本地歌", FilePath: src, Format: "mp3", Duration: 200})
+	for _, tc := range []struct {
+		rangeHeader  string
+		body         string
+		contentRange string
+	}{
+		{"bytes=0-3", "audi", "bytes 0-3/16"},
+		{"bytes=4-7", "o-fi", "bytes 4-7/16"},
+		{"bytes=0-3", "audi", "bytes 0-3/16"},
+		{"", "audio-file-bytes", ""},
+		{"", "audio-file-bytes", ""},
+	} {
+		r := httptest.NewRequest(http.MethodGet, "/api/v1/songs/"+strconv.FormatInt(id, 10)+"/play?normalize=0", nil)
+		r.RemoteAddr = "10.0.0.56:59000"
+		r.Header.Set("Range", tc.rangeHeader)
+		rctx := chi.NewRouteContext()
+		rctx.URLParams.Add("id", strconv.FormatInt(id, 10))
+		r = r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, rctx))
+		w := httptest.NewRecorder()
+		handler.GetSongPlay(w, r)
+		wantStatus := http.StatusOK
+		if tc.rangeHeader != "" {
+			wantStatus = http.StatusPartialContent
+		}
+		if w.Code != wantStatus || w.Body.String() != tc.body {
+			t.Fatalf("Range %q: status=%d body=%q, want status=%d body=%q", tc.rangeHeader, w.Code, w.Body.String(), wantStatus, tc.body)
+		}
+		if got := w.Header().Get("Content-Range"); got != tc.contentRange {
+			t.Errorf("Range %q: Content-Range=%q, want %q", tc.rangeHeader, got, tc.contentRange)
+		}
+		if got := w.Header().Get("Content-Length"); got != strconv.Itoa(len(tc.body)) {
+			t.Errorf("Range %q: Content-Length=%q, want %d", tc.rangeHeader, got, len(tc.body))
+		}
+	}
+}
+
 // TestGetSongPlaySeekIgnored 验证不该起 seek 流的场景：视频画面、prefetch、HEAD、电台。
 func TestGetSongPlaySeekIgnored(t *testing.T) {
 	t.Run("media=video 直出原容器", func(t *testing.T) {
