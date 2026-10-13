@@ -31,6 +31,12 @@ Songloft 是自托管本地音乐服务器，支持**服务器部署**和**Bundl
 
 ---
 
+## 仓库规范归属
+
+- 主仓库记录后端实现、公共宿主能力、接口契约及跨仓库通用约定。
+- 子模块的业务实现、设备兼容、历史问题、回归矩阵与专属验证命令写在各自仓库根目录的 `AGENTS.md`，同步维护 `AGENTS.en.md`。
+- 修改子模块前先读取其本地规范；涉及宿主接口时同时核对主仓库的通用规范。子模块提交完成后，再在主仓库更新指针。
+
 ## 常用命令
 
 ```bash
@@ -345,14 +351,14 @@ curl -s -X POST http://127.0.0.1:3000/function \
 - 路由：`/api/v1/jsplugin/{entry_path}/...`
 - 公共资源：`/api/v1/jsplugin-assets/*` 提供嵌入在 Go 二进制中的 `theme.css`/`components.css`/`common.js`/字体，`injectHTMLHead` 自动注入到所有插件 HTML 页面（注入顺序：theme.css → components.css → common.js）
 - 主题同步：`common.js` 内含 embed 检测 + 主题桥接（URL `?theme=` 参数 + `postMessage` 实时更新 + `data-theme` 属性 + `songloft-theme-change` 事件），暴露 `window.SongloftPlugin` 全局 API（`getTheme`/`onThemeChange`/`apiGet`/`apiPost`/`getCookies` 等）
-- **客户端宿主桥接（WebView）**（`@songloft/client-sdk`，`common.js` 内含）：插件前端页面通过 `window.SongloftPlugin.host` / `player` / `getCookies` / `invokeHost` 等调用 Flutter 客户端宿主能力。native 平台走 `flutter_inappwebview.callHandler('songloftHost', {ns, method, params})`，Web/iframe 走 `postMessage` 到父窗口。分发逻辑在 `clients/player/lib/features/home/presentation/plugin_host_dispatch.dart`（传输无关、web-safe），native 桥接在 `plugin_host_bridge.dart`（mixin，注册 callHandler + 注入平台相关回调）。已注册的 namespace：`host`（getInfo）、`player`（播放控制）、`cookies`（Cookie 读取）、`favorite`（收藏状态同步，`refresh` 方法，传 `{songId, isFavorited}` 增量更新 Flutter 侧 FavoriteNotifier 缓存，不传参则全量重载）。**`window.SongloftPlugin` 的公开成员以 `common.js` 末尾那个对象字面量为唯一真实来源**——`invokeHost` 一度只存在于 `window.__SongloftInternal`（标注"插件请勿依赖"）而公开对象里没有，miot 却在自己的 `frontend/env.d.ts` 里手写了 `invokeHost?` 声明，于是 `window.SongloftPlugin?.invokeHost?.(...)` 通过 TS 编译、运行时被可选调用**静默吞掉**，收藏同步整个功能一个字节都没发出去（songloft-org/songloft-plugin-miot#86 第二次复发的根因）。**插件不要手写宿主 API 的类型声明**，用 `@songloft/client-sdk` 的 `SongloftPluginGlobal`；非要手写就先去 `common.js` 核对那个字面量
+- **客户端宿主桥接（WebView）**（`@songloft/client-sdk`，`common.js` 内含）：插件前端页面通过 `window.SongloftPlugin.host` / `player` / `getCookies` / `invokeHost` 等调用 Flutter 客户端宿主能力。native 平台走 `flutter_inappwebview.callHandler('songloftHost', {ns, method, params})`，Web/iframe 走 `postMessage` 到父窗口。分发逻辑在 `clients/player/lib/features/home/presentation/plugin_host_dispatch.dart`（传输无关、web-safe），native 桥接在 `plugin_host_bridge.dart`（mixin，注册 callHandler + 注入平台相关回调）。已注册的 namespace：`host`（getInfo）、`player`（播放控制）、`cookies`（Cookie 读取）、`favorite`（收藏状态同步，`refresh` 方法，传 `{songId, isFavorited}` 增量更新 Flutter 侧 FavoriteNotifier 缓存，不传参则全量重载）。**`window.SongloftPlugin` 的公开成员以 `common.js` 末尾那个对象字面量为唯一真实来源**。**插件不要手写宿主 API 的类型声明**，用 `@songloft/client-sdk` 的 `SongloftPluginGlobal`；非要手写就先去 `common.js` 核对那个字面量
 - **Cookie 读取桥**（`window.SongloftPlugin.getCookies(origin)`）：读取宿主 WebView Cookie Store 中指定 origin 的 Cookie（含 HttpOnly），返回 `{name: value}` 映射。**仅原生客户端可用**（Android/iOS/macOS/Windows；Linux 桌面无 WebView 实现），Web 端因浏览器同源策略无法实现，调用会 reject。实现路径：`common.js getCookies()` → `invokeHost('cookies', 'get', {origin})` → Flutter `PluginHostDispatcher` → `cookieProvider` 回调 → `CookieManager.instance().getCookies(url: WebUri(origin))`。origin 必须含协议+主机（如 `https://example.com`），无效格式会被校验拒绝。典型用途：FN Connect 等第三方网关的会话复用（用户在应用内 WebView 登录后，插件读取 Cookie 用于后续 API 调用）
 - **Lynx 原生渲染桥接**（`@songloft/lynx-plugin-sdk`，`renderEngine: "lynx"` 专用）：声明 `renderEngine: "lynx"` 的插件使用 ReactLynx 编写 UI，编译为 `.lynx.bundle`，宿主通过 Lynx `<frame>` 元素原生加载。通信走 `NativeModules.SongloftPluginBridge`（三端原生模块：Android `SongloftPluginBridgeModule.kt` / iOS `SongloftPluginBridgeModule.swift` / HarmonyOS `SongloftPluginBridgeModule.ets`），按 `frameId` 路由父子 frame 间 RPC + 事件推送。SDK 提供 `invokeHost(ns, method, params)` / `onPlayerState` / `onThemeChange` / `onPush` 等 API。**不使用** `window.SongloftPlugin` / `@songloft/client-sdk`（那些是 WebView 专用）。构建时自动生成 `index.html` + `.web.bundle` 供 Flutter 客户端 WebView 回退
 - `theme.css` 定义 `--md-*` CSS 变量（亮/暗双主题）、字体声明与 reset 样式；`components.css` 提供组件库样式。所有使用这些变量的插件自动跟随主题切换
 - 权限：manifest 中 `permissions: ["net", "storage", "fs:music", ...]`，运行时由 `internal/jsplugin` 校验
 - **fetch 内部控制头**：`X-Fetch-No-Redirect`（不跟随重定向，收集中间跳 `Set-Cookie` 必需）、`X-Fetch-Timeout-Ms`（单次超时 100–30000ms）、`X-Fetch-Insecure`（跳过 TLS 校验，**需 `net:insecure-tls` 权限**）。三者一律不转发给上游——`X-Fetch-Insecure` 曾因未实现而被当普通头透给上游（songloft-org/songloft#401）
 - **新增权限常量要同步三处，否则插件根本用不上**：① 宿主 `internal/jsplugin/permissions.go` 的 `AllPermissions`；② `plugins/toolchain/packages/plugin-builder/src/manifest.ts` 的 `VALID_PERMISSIONS`——**它在 build 时硬失败**（`unknown permission: xxx`），漏了这处插件连编译产物都出不来；③ `plugins/toolchain/packages/create-songloft-plugin/src/index.ts` 的 `AVAILABLE_PERMISSIONS`（脚手架勾选列表）。另外 `ValidatePermissions`（宿主侧）**刻意对未知权限只 warn 不拒绝**：它挂在安装/更新的必经路径上，拒绝会让声明了新权限的插件在**旧宿主**上直接装不上，砸掉的还是插件原本正常的其他功能；宽容是安全中立的（`CheckPermission` 只认它认识的字符串）。**但旧宿主的严格校验已经发布出去了**，所以新权限落地后仍需等宿主版本铺开才能发插件——`minHostVersion` **纯属信息字段、宿主从不强制**，别指望它拦住谁
-- **`net:insecure-tls` 权限（跳过 TLS 证书校验）**：`jsruntime` 层**没有权限概念**，`fetch` 本身也不需要 `net` 权限；该权限靠 `service.go` 在建环境后调 `jsManager.SetAllowInsecureTLS(envID, ...)` 投影成 `JSEnv.allowInsecureTLS`（默认 false），是权限在运行时层的唯一体现。几个要点：① **`CheckPermission` 无冒号前缀匹配，`net` 不覆盖 `net:insecure-tls`**——刻意如此，否则所有已声明 `net` 的存量插件（miot/bili/dav/pcyear-bridge）升级后会静默获得跳过校验的能力，而用户在权限列表里看不到任何变化；② 独立的 `insecureTransport`，**不能**复用 `sharedTransport` 再改单次请求的 `TLSClientConfig`——连接池按 Transport 隔离，那样会污染所有插件的连接复用；③ 子环境（`songloft.jsenv` 创建的）必须继承父插件的策略，否则「插件在子 worker 里发请求」会莫名校验失败；④ 无权限却带了该头时打 `slog.Warn` 而非静默丢弃——插件作者普遍误以为「宿主不识别就零副作用」，一条日志能省掉一整轮排查。**存在理由**：自建 NAS（飞牛 fnOS 5667）默认自签，且插件按**裸 IP** 访问，即便装了 CA 正式证书主体也是域名，按 IP 连必然 hostname mismatch——这类目标结构性无解
+- **`net:insecure-tls` 权限（跳过 TLS 证书校验）**：`jsruntime` 层**没有权限概念**，`fetch` 本身也不需要 `net` 权限；该权限靠 `service.go` 在建环境后调 `jsManager.SetAllowInsecureTLS(envID, ...)` 投影成 `JSEnv.allowInsecureTLS`（默认 false），是权限在运行时层的唯一体现。几个要点：① **`CheckPermission` 无冒号前缀匹配，`net` 不覆盖 `net:insecure-tls`**——刻意如此，否则所有已声明 `net` 的存量插件升级后会静默获得跳过校验的能力，而用户在权限列表里看不到任何变化；② 独立的 `insecureTransport`，**不能**复用 `sharedTransport` 再改单次请求的 `TLSClientConfig`——连接池按 Transport 隔离，那样会污染所有插件的连接复用；③ 子环境（`songloft.jsenv` 创建的）必须继承父插件的策略，否则「插件在子 worker 里发请求」会莫名校验失败；④ 无权限却带了该头时打 `slog.Warn` 而非静默丢弃——插件作者普遍误以为「宿主不识别就零副作用」，一条日志能省掉一整轮排查。**存在理由**：自建 NAS（飞牛 fnOS 5667）默认自签，且插件按**裸 IP** 访问，即便装了 CA 正式证书主体也是域名，按 IP 连必然 hostname mismatch——这类目标结构性无解
 - 健康检查 + 文件指纹热更新均自动进行
 - **UDP Socket API**（`songloft.net`，需 `net` 权限）：Go 侧托管 UDP socket + 消息推送模式。`udpBind` 创建 socket 并启动 reader goroutine，收到的 UDP 包通过 scheduler 队列异步推送到 JS 回调（`onData`）。支持多播组（`udpJoinMulticast/udpLeaveMulticast`），典型用途：SSDP 设备发现（DLNA/UPnP）。每插件最多 8 个 socket，有活跃 socket 的插件不会被空闲驱逐，插件卸载时自动清理。实现在 `internal/jsplugin/api_bridge_net.go`
 - **TCP Socket API**（`songloft.net.tcpConnect`，需 `net` 权限）：出站 TCP 连接，`tcpConnect(host, port, options?)` 返回带 `send()/onData()/onClose()/close()` 的 socket 句柄。数据接收复用 UDP 的 Go readLoop + host event 队列推送模式（`postHostEvent("tcp_data")` → JS `__dispatchHostEvent`）。**data 为 base64 编码的原始字节**（send 侧 `btoa`、onData 侧 `atob`，同 UDP）：TCP 是字节流，一次读取可能在多字节 UTF-8 字符中间截断，raw string 会被 `json.Marshal` 替换为 U+FFFD 而永久损坏，故必须 base64；插件需累积字节跨 chunk 拼接后再 UTF-8 解码。**仅允许连接私有 / 回环 / 链路本地地址**（`isPrivateHostAllowed`，防 SSRF）；与 UDP 各自独立计每插件 8 个 socket 配额；有活跃 TCP 连接的插件不被空闲驱逐；卸载时自动清理。典型用途：控制本机 MPD（6600 端口 idle 事件推送）。实现在 `internal/jsplugin/api_bridge_tcp.go`
@@ -609,7 +615,7 @@ manager/scheduler 的内存 map 键，以及 `plugin_storage.plugin_entry_path` 
 ### 音频转码代理（/proxy/transcode）
 
 - 业务端点：`GET /api/v1/proxy/transcode?url=&format=mp3[&bitrate=&duration=&user_agent=&referer=]`（`@Security BearerAuth`，需 token；token 作为首个查询参数，规避音箱固件把 `&` 替换为空格的坑）
-- 服务端拉取远程音频 URL，经 ffmpeg 实时转码为 mp3（CBR 320k）流式返回。用途：miot「不入库直接播放」场景下，外部搜索源返回 webm/opus 等音箱无法解码的直链（songloft-org/songloft#394），客户端把本端点 URL 推给音箱即可播放
+- 服务端拉取远程音频 URL，经 ffmpeg 实时转码为 mp3（CBR 320k）流式返回。供客户端播放原始格式不兼容的远程音频（如 webm/opus，songloft-org/songloft#394），客户端使用本端点获得兼容的 MP3 流
 - 不落盘、不入库、不缓存（与 no-import 语义一致；youtube 直链每次重签，缓存零收益，重播收益走入库路径）
 - SSRF 防护：复用 `/settings/proxy-private-allowlist`，与通用 `/proxy` 同一 `IsHostnameAllowedWithAllowlist` 校验
 - 输出 mp3 CBR + `-write_xing 0` + `-map 0:a:0 -vn`：pipe 不可 seek，音箱靠字节估算时长，CBR 避免提前切歌（同 seek 流取舍）
@@ -625,22 +631,19 @@ manager/scheduler 的内存 map 键，以及 `plugin_storage.plugin_entry_path` 
 - 缓存目录默认 `{data_dir}/music_cache/`，可通过 `PUT /api/v1/cache-manage/config` 的 `cache_dir` 字段自定义为绝对路径
 - 启动时从 `music_cache_config` 配置读取自定义目录；运行时切换目录会自动重建 LRU 索引，不迁移旧文件
 - LRU 淘汰：超出 `max_size`（默认 1GB）时按最后访问时间淘汰，`max_size=0` 表示不限制
-- **缓存落盘转码**（`transcode_format` / `transcode_quality`，`PUT /api/v1/cache-manage/config`，songloft-org/songloft#300）：默认 `""` 按上游原码落盘（YouTube .mkv/.webm、B站 .mov）；设为 `mp3/m4a/ogg/flac/wav` 后，缓存网络歌曲落盘时统一转码为该格式（解决小爱音箱等设备无法播放 MKV）。由 `EnsureCachedFormat` 在两个播放侧产出点执行——`FinalizeCache`（流式播放 + 206 异步全量）与 `prepareSongPlayback` 的 prefetch 预热（`Get` 之后）；复用 `runFFmpeg`，转码后删原码、`cache_path` 指向新格式。缺 ffmpeg 或转码失败时**优雅降级保留原格式**。**不影响** `songs.download` 的显式格式处理（下载路径复用 `Get` 但自带 `opts.Format`，故转码逻辑只挂在播放侧，不动 `moveToCache`/`Get`）。**取舍**：`ffmpeg -vn` 会丢视频轨，故对 `is_video` 的远程歌开启后 `media=video` 投屏只得纯音频（属预期，满足 YouTube MKV→mp3 主诉求）；`EnsureCachedFormat` 内含 `cacheTranscodeTimeout`（15min）兜底，防坏源卡死永久占用 `transcodeSem`
+- **缓存落盘转码**（`transcode_format` / `transcode_quality`，`PUT /api/v1/cache-manage/config`，songloft-org/songloft#300）：默认 `""` 按上游原码落盘（YouTube .mkv/.webm、B站 .mov）；设为 `mp3/m4a/ogg/flac/wav` 后，缓存网络歌曲落盘时统一转码为该格式（适配不支持 MKV 的音频客户端）。由 `EnsureCachedFormat` 在两个播放侧产出点执行——`FinalizeCache`（流式播放 + 206 异步全量）与 `prepareSongPlayback` 的 prefetch 预热（`Get` 之后）；复用 `runFFmpeg`，转码后删原码、`cache_path` 指向新格式。缺 ffmpeg 或转码失败时**优雅降级保留原格式**。**不影响** `songs.download` 的显式格式处理（下载路径复用 `Get` 但自带 `opts.Format`，故转码逻辑只挂在播放侧，不动 `moveToCache`/`Get`）。**取舍**：`ffmpeg -vn` 会丢视频轨，故对 `is_video` 的远程歌开启后 `media=video` 投屏只得纯音频（属预期，满足 YouTube MKV→mp3 主诉求）；`EnsureCachedFormat` 内含 `cacheTranscodeTimeout`（15min）兜底，防坏源卡死永久占用 `transcodeSem`
 - `POST /api/v1/cache-manage/validate-dir` 可预先验证目录（自动创建 + 可写性检查 + 返回磁盘空间）
 - inflight 去重：同 `song.ID` 的并发请求只下载一次；首请求被 `ctx.Canceled` 时后续等待者自动重试
 
 ### 音量均衡（`/songs/{id}/play?normalize=1`）
 
-EBU R128 响度均衡（songloft-org/songloft#315），消除不同音源之间的响度落差。目前只有 miot 插件用
-（设置页「音量均衡」开关 → config key `volume_normalize` → `buildSongURL` 追加 `&normalize=1&format=mp3`）。
+EBU R128 响度均衡（songloft-org/songloft#315），消除不同音源之间的响度落差。客户端通过播放 URL 的 `normalize=1` 参数请求均衡。
 
 - 滤镜串是 `internal/services` 的包级常量 `loudnormFilter`（`loudnorm=I=-16:LRA=11:TP=-1.5`，**单遍**动态模式）。
   落盘转码与实时流共用它，**不要**在任一处内联写死——两条路径必须给出同一响度
 - 产物缓存键带 `norm.` 标记（`transcodedFileName`），与不均衡的产物**互不通用**
 - **转码产物未就绪时边转边发**（`tryLiveTranscodeStream` → `StreamSeekedMP3`，`internal/handlers/music.go`）：
-  `GetOrTranscode` 是同步的，首字节 = 整首转码的墙钟时间。两处实测：整首 loudnorm 要 20+ 秒，
-  会把设备的首个 play 请求整段挂住（songloft-org/songloft-plugin-miot#61 实测 `dur_ms=22392/24348/22381`），
-  音箱那端是「前 20 多秒空白」，而插件的自动切歌定时器在推 URL 那一刻就起算，尾部又被砍掉同样长度；
+  `GetOrTranscode` 是同步的，首字节 = 整首转码的墙钟时间；整首 loudnorm 要 20+ 秒，
   普通 `?format=` / `?quality=` 转码在弱 CPU（N5095）上无损转 mp3 也要等 5 秒以上才出声
   （songloft-org/songloft#442）。改为 pipe 直出后实测均衡场景首字节 10.03s → 0.088s。
   **`format` 与 `quality` 两条路都覆盖**（`SeekStreamOptions.Bitrate` 让 pipe 能如实表达 `?quality=`，
@@ -686,16 +689,12 @@ EBU R128 响度均衡（songloft-org/songloft#315），消除不同音源之间�
   阻塞路径本身无损（只是回到修复前的行为）
 - **预热必须带 normalize**：`prepareSongPlayback` 的 `normalize` 参数不能丢，且短路判断里要有 `!normalize`
   ——mp3 源 + `format=mp3` 时 `NeedsTranscodeForServe` 为 false，少了这一项预热会直接 return、一行没干
-  （#61 的另一半根因，日志里连一条 `prefetch ready` 都不会出现）
-- 插件侧配套：随机模式下 `PlaylistManager.reserveNextIndex()` 把「预热的那首」和「真会播的那首」
-  锁到同一首。`getNextIndex()` 每次调用都重新摇骰子，预热与切歌各调一次就必然热错人（实测 492/500 不一致）
+  （日志中也不会出现 `prefetch ready`）
 
 ### 服务端 seek 流（`/songs/{id}/play?seek=<秒>`）
 
-给 URL 推流客户端表达续播位置用。小爱音箱经 `player_play_url` 拿到 URL 后从流的开头播，
-固件虽会发 Range 做分段缓冲，插件仍需通过新 URL 表达「从第 N 秒续播」，由服务端产出一条
-**以第 N 秒为开头**的流（songloft-org/songloft-plugin-miot#60：暂停被固件忽略 → 升级 stop →
-设备端媒体上下文丢失 → 续播只能重推 URL）。实现在 `internal/services/seek_stream.go`，
+给 URL 推流客户端表达续播位置用。客户端通过 `seek=N` 请求一条**以第 N 秒为开头**的新流；
+Range 表示这条流的字节偏移，两者语义独立。实现在 `internal/services/seek_stream.go`，
 骨架与 `radio_transcode.go` 同构（`Peek(1)` 确认有输出才提交响应，否则返回哨兵错误让
 handler 无损降级为从头 `ServeFile`）。
 
@@ -708,7 +707,7 @@ handler 无损降级为从头 `ServeFile`）。
   表现为静默降级回「从头播」，只有一行 warn，极难归因
 - **只对本地歌曲与已缓存的网络歌曲生效**：未缓存时拿到本地文件要先同步下载整首，会让「续播」
   这一下按键卡住一整首下载时长。电台（直播无位置）、`media=video`（`-vn` 会丢画面）、HEAD 均忽略
-- **seek 必须夹到距结尾 3 秒之外**（`parseSeekSeconds` 与插件侧 `playCurrent` 同源守卫）：
+- **seek 必须夹到距结尾 3 秒之外**（`parseSeekSeconds`；客户端也应遵守这一边界）：
   越过文件尾 → ffmpeg 零输出 → 触发降级 → **整首从头重播**，比忽略 seek 更糟
 - **不占 `transcodeSem`**（进程存活整首剩余时长，会饿死其他转码），改用本文件内 `cap=4` 的独立
   信号量，满了直接降级不排队；`exec.CommandContext` 另带「剩余时长 + 5min」硬超时回收孤儿进程。
@@ -722,33 +721,6 @@ handler 无损降级为从头 `ServeFile`）。
   `duration == 0` 是常态（远程歌曲元数据未刷新、本地文件 tag 与 ffprobe 都拿不到时长）
 - 已知时长、不变速且满足 `planCBRRange` 前提时返回 `Content-Length` / `Accept-Ranges: bytes`，
   分段请求可返回 206；其他情况才是 chunked 无长度。两者均使用 `Cache-Control: no-store`
-- 插件侧配套：`PlaylistManager.streamSeekOffsetSec` 记住当前流的起点。带 seek 的流对设备是
-  「从 0 开始的新流」，它上报的 `play_song_detail.position` 只是流内偏移，**消费点必须补上偏移**
-  （`handlers/playlist.ts` 的 `resolvePlayerStatus`、`playback/voice_resume.ts` 的恢复判断），
-  否则续播后网页进度条会掉回 0、自动切歌被推迟一整个 seek 时长
-
-### MIoT 续播与重播：历史回归约束（songloft-org/songloft#516）
-
-- **相同现象不等于相同根因**：排查先检索父仓库和插件仓库的全部 Issue，再对相关正文、评论、
-  修复提交与现有测试交叉核对。至少覆盖父仓库 #171/#404/#408/#449/#481/#488/#490/#495/#500/#503/#514，
-  及 `songloft-org/songloft-plugin-miot#54/#60/#61/#63/#87/#88/#95/#96`。
-  不因旧 Issue 已关闭就认为没有回归，也不要把未发布、未更新插件或旧 ffmpeg 镜像当成代码修复无效。
-- **不能仅凭本地计时超前就重推**：缓冲会让音箱位置落后；状态 0/2 也可能误报（#449）。
-  自动恢复检测重播需同曲身份、连续新采样推进，以及至少一份采样落在流开头三秒且明显落后保存位置。
-  判断前把流内秒换为 `position * speed + seekOffset`。身份未知、重复缓存或交互前采样不能证明重播。
-- **保存位置不被暂停后的归零覆盖**：语音任务保存打断锚点，暂停/停止读回值不能把它回拨到 0。
-  `resetAutoNextTimer` 是 HTTP/WS 状态融合与智能续播共用入口，必须挡住挂起期间的回零校准；
-  只修 `VoiceResumeCoordinator` 会被状态轮询抢先改写位置、递增版本并取消任务（#171）。
-- **新操作优先，切歌规则不漂移**：每次 await 后核对任务身份和播放版本；暂停、停止、下一首、
-  新对话及 DLNA 接管后，迟到结果不得恢复旧歌曲（#408/#494）。正常续播必须重建剩余时间定时器，
-  保留 `transitionOffset` / speed（#404、插件 #87/#88）；重播检测不能替代尾部结束校验（#481/#495）。
-  自动恢复临近结尾时使用保护区前的安全整数秒，不能让 seek 守卫退化为整首重播。
-- **取证与验证**：访问日志比较请求 `range`、响应 `content_range/content_length` 与实际 `bytes`；
-  206 或重复 GET 本身不能证明全量重拉，下载字节也不是已听进度。ffmpeg 失败看完整 `error/output`；
-  应用内升级不更新镜像里的 ffmpeg（#403）。回归必须运行插件 `player_failures`、`player_status`、
-  `player_transition`、`mina_status`、前端 slider/status 测试，及后端播放/Range/定时器测试。
-  Node 22 用 `node --experimental-strip-types --test tests/*.test.mjs`，不能漏掉直接导入 TS 的测试。
-  自动化通过只证明覆盖的场景；真实音箱、问题音频与长期运行验收须单独记录，不能宣称已完成。
 
 ### 歌曲持久化（song_downloader — 插件基础设施）
 

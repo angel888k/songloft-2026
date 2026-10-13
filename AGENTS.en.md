@@ -31,6 +31,12 @@ Songloft is a self-hosted local music server that supports both **server deploym
 
 ---
 
+## Ownership of Repository Instructions
+
+- The parent repository documents backend implementation, shared host capabilities, interface contracts, and conventions used across repositories.
+- Each submodule keeps its business implementation, device compatibility, historical issues, regression matrix, and dedicated validation commands in its own root `AGENTS.md`, with a synchronized `AGENTS.en.md`.
+- Read local instructions before editing a submodule, and check the parent instructions when host interfaces are involved. Commit the submodule before updating its pointer in the parent.
+
 ## Common Commands
 
 ```bash
@@ -355,14 +361,14 @@ changed; after clicking "Stop computing", use `pgrep -x ffmpeg` to confirm the c
 - Routing: `/api/v1/jsplugin/{entry_path}/...`
 - Common assets: `/api/v1/jsplugin-assets/*` serves the `theme.css`/`components.css`/`common.js`/fonts embedded in the Go binary, which `injectHTMLHead` automatically injects into all plugin HTML pages (injection order: theme.css → components.css → common.js)
 - Theme sync: `common.js` contains embed detection + theme bridging (URL `?theme=` parameter + real-time `postMessage` updates + `data-theme` attribute + `songloft-theme-change` event), and exposes the `window.SongloftPlugin` global API (`getTheme`/`onThemeChange`/`apiGet`/`apiPost`/`getCookies`, etc.)
-- **Client host bridge (WebView)** (`@songloft/client-sdk`, built into `common.js`): Plugin frontend pages call Flutter client host capabilities via `window.SongloftPlugin.host` / `player` / `getCookies` / `invokeHost`. Native platforms use `flutter_inappwebview.callHandler('songloftHost', {ns, method, params})`, Web/iframe uses `postMessage` to parent window. Dispatch logic in `clients/player/lib/features/home/presentation/plugin_host_dispatch.dart` (transport-agnostic, web-safe), native bridge in `plugin_host_bridge.dart` (mixin, registers callHandler + injects platform-specific callbacks). Registered namespaces: `host` (getInfo), `player` (playback control), `cookies` (cookie reading), `favorite` (favorite state sync — `refresh` method, pass `{songId, isFavorited}` for incremental update of Flutter-side FavoriteNotifier cache, or omit params for full reload). **The object literal at the end of `common.js` is the single source of truth for what `window.SongloftPlugin` exposes** — `invokeHost` once existed only on `window.__SongloftInternal` (marked "plugins must not depend on this") and was absent from the public object, yet miot hand-wrote an `invokeHost?` declaration in its own `frontend/env.d.ts`. So `window.SongloftPlugin?.invokeHost?.(...)` type-checked fine and was **silently swallowed** by the optional call at runtime — the entire favorite-sync feature never sent a single byte (the root cause of the second regression in songloft-org/songloft-plugin-miot#86). **Plugins must not hand-write type declarations for host APIs**; use `SongloftPluginGlobal` from `@songloft/client-sdk`, or if you must hand-write them, check that literal in `common.js` first
+- **Client host bridge (WebView)** (`@songloft/client-sdk`, built into `common.js`): Plugin frontend pages call Flutter client host capabilities via `window.SongloftPlugin.host` / `player` / `getCookies` / `invokeHost`. Native platforms use `flutter_inappwebview.callHandler('songloftHost', {ns, method, params})`, Web/iframe uses `postMessage` to parent window. Dispatch logic in `clients/player/lib/features/home/presentation/plugin_host_dispatch.dart` (transport-agnostic, web-safe), native bridge in `plugin_host_bridge.dart` (mixin, registers callHandler + injects platform-specific callbacks). Registered namespaces: `host` (getInfo), `player` (playback control), `cookies` (cookie reading), `favorite` (favorite state sync — `refresh` method, pass `{songId, isFavorited}` for incremental update of Flutter-side FavoriteNotifier cache, or omit params for full reload). **The object literal at the end of `common.js` is the single source of truth for what `window.SongloftPlugin` exposes**. **Plugins must not hand-write type declarations for host APIs**; use `SongloftPluginGlobal` from `@songloft/client-sdk`, or if you must hand-write them, check that literal in `common.js` first
 - **Cookie reading bridge** (`window.SongloftPlugin.getCookies(origin)`): Reads cookies for a specified origin from the host WebView Cookie Store (including HttpOnly), returns `{name: value}` map. **Native clients only** (Android/iOS/macOS/Windows; Linux desktop has no WebView implementation) — Web platform cannot implement this due to browser same-origin policy; calls will reject. Implementation path: `common.js getCookies()` → `invokeHost('cookies', 'get', {origin})` → Flutter `PluginHostDispatcher` → `cookieProvider` callback → `CookieManager.instance().getCookies(url: WebUri(origin))`. Origin must include protocol+host (e.g. `https://example.com`); invalid formats are rejected by validation. Typical use case: session reuse for third-party gateways like FN Connect (user logs in within the app's WebView, plugin reads cookies for subsequent API calls)
 - **Lynx native rendering bridge** (`@songloft/lynx-plugin-sdk`, for `renderEngine: "lynx"` only): plugins declaring `renderEngine: "lynx"` use ReactLynx to build UI, compiled into `.lynx.bundle`; the host loads them natively via Lynx `<frame>` elements. Communication goes through `NativeModules.SongloftPluginBridge` (three-platform native modules: Android `SongloftPluginBridgeModule.kt` / iOS `SongloftPluginBridgeModule.swift` / HarmonyOS `SongloftPluginBridgeModule.ets`), routing parent–child frame RPC + event push by `frameId`. The SDK provides `invokeHost(ns, method, params)` / `onPlayerState` / `onThemeChange` / `onPush` etc. **Does not use** `window.SongloftPlugin` / `@songloft/client-sdk` (those are WebView-only). At build time an `index.html` + `.web.bundle` is auto-generated as a WebView fallback for the Flutter client
 - `theme.css` defines `--md-*` CSS variables (dual light/dark theme), font declarations and reset styles; `components.css` provides component library styles. Any plugin using these variables automatically follows theme switches
 - Permissions: `permissions: ["net", "storage", "fs:music", ...]` in the manifest, validated at runtime by `internal/jsplugin`
 - **fetch internal control headers**: `X-Fetch-No-Redirect` (don't follow redirects; required to collect `Set-Cookie` from intermediate hops), `X-Fetch-Timeout-Ms` (per-request timeout 100–30000ms), `X-Fetch-Insecure` (skip TLS verification, **requires the `net:insecure-tls` permission**). None of the three are ever forwarded upstream — `X-Fetch-Insecure` used to leak upstream as an ordinary header because it was unimplemented (songloft-org/songloft#401)
 - **A new permission constant must be synced in three places, or plugins can't use it at all**: (1) `AllPermissions` in the host's `internal/jsplugin/permissions.go`; (2) `VALID_PERMISSIONS` in `plugins/toolchain/packages/plugin-builder/src/manifest.ts` — **this one hard-fails at build time** (`unknown permission: xxx`), so missing it means the plugin can't even produce a build artifact; (3) `AVAILABLE_PERMISSIONS` in `plugins/toolchain/packages/create-songloft-plugin/src/index.ts` (the scaffold's checklist). Separately, `ValidatePermissions` (host side) **deliberately only warns on unknown permissions rather than rejecting**: it sits on the mandatory install/update path, and rejecting would make a plugin that declares a new permission uninstallable on **older hosts**, taking down the plugin's otherwise-working features too; leniency is security-neutral (`CheckPermission` only honors strings it knows). **But older hosts with the strict check are already released**, so even after a new permission lands you must wait for host adoption before shipping the plugin — `minHostVersion` is **purely informational and never enforced by the host**, so don't expect it to gate anyone
-- **`net:insecure-tls` permission (skip TLS certificate verification)**: the `jsruntime` layer **has no concept of permissions**, and `fetch` itself doesn't require `net`; this permission is projected by `service.go` calling `jsManager.SetAllowInsecureTLS(envID, ...)` after env creation into `JSEnv.allowInsecureTLS` (default false) — that flag is the permission's only runtime-layer manifestation. Key points: (1) **`CheckPermission` does no colon-prefix matching, so `net` does not cover `net:insecure-tls`** — deliberately, otherwise every existing plugin that already declares `net` (miot/bili/dav/pcyear-bridge) would silently gain verification-skipping on upgrade while the user sees no change in the permission list; (2) a dedicated `insecureTransport` — do **not** reuse `sharedTransport` and mutate `TLSClientConfig` per request, since connection pools are per-Transport and that would poison connection reuse for every plugin; (3) child environments (created via `songloft.jsenv`) must inherit the parent plugin's policy, or "plugin issues a request from a child worker" fails verification for no visible reason; (4) when the header is present without the permission, emit `slog.Warn` rather than dropping it silently — plugin authors commonly assume "if the host doesn't recognize it, it's a no-op", and one log line saves a whole debugging round. **Why it exists**: self-hosted NAS devices (fnOS port 5667) ship self-signed certs by default and plugins reach them by **bare IP**; even with a properly CA-signed cert the subject is a hostname, so connecting by IP always mismatches — structurally unsolvable for these targets
+- **`net:insecure-tls` permission (skip TLS certificate verification)**: the `jsruntime` layer **has no concept of permissions**, and `fetch` itself doesn't require `net`; this permission is projected by `service.go` calling `jsManager.SetAllowInsecureTLS(envID, ...)` after env creation into `JSEnv.allowInsecureTLS` (default false) — that flag is the permission's only runtime-layer manifestation. Key points: (1) **`CheckPermission` does no colon-prefix matching, so `net` does not cover `net:insecure-tls`** — deliberately, otherwise every existing plugin that already declares `net` would silently gain verification-skipping on upgrade while the user sees no change in the permission list; (2) a dedicated `insecureTransport` — do **not** reuse `sharedTransport` and mutate `TLSClientConfig` per request, since connection pools are per-Transport and that would poison connection reuse for every plugin; (3) child environments (created via `songloft.jsenv`) must inherit the parent plugin's policy, or "plugin issues a request from a child worker" fails verification for no visible reason; (4) when the header is present without the permission, emit `slog.Warn` rather than dropping it silently — plugin authors commonly assume "if the host doesn't recognize it, it's a no-op", and one log line saves a whole debugging round. **Why it exists**: self-hosted NAS devices (fnOS port 5667) ship self-signed certs by default and plugins reach them by **bare IP**; even with a properly CA-signed cert the subject is a hostname, so connecting by IP always mismatches — structurally unsolvable for these targets
 - Health checks + file-fingerprint hot updates both happen automatically
 - **UDP Socket API** (`songloft.net`, requires `net` permission): the Go side hosts the UDP socket + a message-push model. `udpBind` creates a socket and starts a reader goroutine; received UDP packets are pushed asynchronously to the JS callback (`onData`) via the scheduler queue. Supports multicast groups (`udpJoinMulticast/udpLeaveMulticast`), typical use: SSDP device discovery (DLNA/UPnP). Each plugin gets at most 8 sockets; a plugin with active sockets won't be idle-evicted, and sockets are cleaned up automatically on plugin unload. Implemented in `internal/jsplugin/api_bridge_net.go`
 - **TCP Socket API** (`songloft.net.tcpConnect`, requires `net` permission): outbound TCP connections. `tcpConnect(host, port, options?)` returns a socket handle with `send()/onData()/onClose()/close()`. Data reception reuses UDP's Go readLoop + host event queue push model (`postHostEvent("tcp_data")` → JS `__dispatchHostEvent`). **`data` is base64-encoded raw bytes** (`btoa` on send, `atob` on onData, same as UDP): TCP is a byte stream and a single read may split in the middle of a multi-byte UTF-8 character; a raw string would be replaced with U+FFFD by `json.Marshal` and permanently corrupted, so base64 is mandatory. Plugins must accumulate bytes across chunks before UTF-8 decoding. **Only private / loopback / link-local addresses are allowed** (`isPrivateHostAllowed`, anti-SSRF); the 8-sockets-per-plugin quota is counted independently from UDP; a plugin with active TCP connections won't be idle-evicted; sockets are cleaned up on unload. Typical use: controlling a local MPD (idle event push on port 6600). Implemented in `internal/jsplugin/api_bridge_tcp.go`
@@ -675,7 +681,7 @@ Read all of the following before touching this area.
 ### Audio transcode proxy (/proxy/transcode)
 
 - Business endpoint: `GET /api/v1/proxy/transcode?url=&format=mp3[&bitrate=&duration=&user_agent=&referer=]` (`@Security BearerAuth`, token required; token must be the first query param to dodge speaker-firmware replacing `&` with space)
-- The server fetches a remote audio URL and transcodes it to mp3 (CBR 320k) on the fly, streamed back. Use case: in miot's "no-import direct play" scenario, when an external search source returns a direct link in a format the speaker can't decode (webm/opus, songloft-org/songloft#394), the client pushes this endpoint URL to the speaker
+- The server fetches a remote audio URL and transcodes it to mp3 (CBR 320k) on the fly, streamed back. Clients use this endpoint to obtain an MP3 stream when the original remote audio format is unsupported (such as webm/opus, songloft-org/songloft#394)
 - No disk persistence, no DB entry, no cache (consistent with no-import semantics; youtube direct links are re-signed each search, so caching yields zero benefit — replay benefit goes through the import path)
 - SSRF protection: reuses `/settings/proxy-private-allowlist`, the same `IsHostnameAllowedWithAllowlist` check as the generic `/proxy`
 - Output is mp3 CBR + `-write_xing 0` + `-map 0:a:0 -vn`: the pipe is non-seekable, the speaker estimates duration from byte count, CBR avoids premature track-switching (same trade-off as the seek stream)
@@ -691,15 +697,14 @@ Read all of the following before touching this area.
 - The cache directory defaults to `{data_dir}/music_cache/`, and can be customized to an absolute path via the `cache_dir` field of `PUT /api/v1/cache-manage/config`
 - At startup the custom directory is read from the `music_cache_config` config; switching directories at runtime automatically rebuilds the LRU index and does not migrate old files
 - LRU eviction: when exceeding `max_size` (default 1GB), evict by last access time; `max_size=0` means unlimited
-- **Transcode on cache** (`transcode_format` / `transcode_quality`, `PUT /api/v1/cache-manage/config`, songloft-org/songloft#300): defaults to `""`, storing the upstream raw container (YouTube .mkv/.webm, Bilibili .mov); set to `mp3/m4a/ogg/flac/wav` to transcode network songs to that format when caching (fixes devices like Xiao AI speakers that cannot play MKV). Performed by `EnsureCachedFormat` at the two playback-side cache producers — `FinalizeCache` (streaming playback + 206 async full download) and the prefetch prewarm in `prepareSongPlayback` (after `Get`); reuses `runFFmpeg`, deletes the raw file after transcoding and points `cache_path` to the new format. **Gracefully degrades** to the original format when ffmpeg is missing or transcoding fails. Does **not** affect `songs.download`'s explicit format handling (the download path reuses `Get` but carries its own `opts.Format`, so the transcode logic is attached only on the playback side and never touches `moveToCache`/`Get`). **Tradeoff**: `ffmpeg -vn` drops the video track, so once enabled, `media=video` casting of an `is_video` remote song yields audio only (expected, serving the YouTube MKV→mp3 primary need); `EnsureCachedFormat` carries a `cacheTranscodeTimeout` (15min) fallback to prevent a stuck ffmpeg from permanently holding `transcodeSem`
+- **Transcode on cache** (`transcode_format` / `transcode_quality`, `PUT /api/v1/cache-manage/config`, songloft-org/songloft#300): defaults to `""`, storing the upstream raw container (YouTube .mkv/.webm, Bilibili .mov); set to `mp3/m4a/ogg/flac/wav` to transcode network songs to that format when caching (supports audio clients that cannot play MKV). Performed by `EnsureCachedFormat` at the two playback-side cache producers — `FinalizeCache` (streaming playback + 206 async full download) and the prefetch prewarm in `prepareSongPlayback` (after `Get`); reuses `runFFmpeg`, deletes the raw file after transcoding and points `cache_path` to the new format. **Gracefully degrades** to the original format when ffmpeg is missing or transcoding fails. Does **not** affect `songs.download`'s explicit format handling (the download path reuses `Get` but carries its own `opts.Format`, so the transcode logic is attached only on the playback side and never touches `moveToCache`/`Get`). **Tradeoff**: `ffmpeg -vn` drops the video track, so once enabled, `media=video` casting of an `is_video` remote song yields audio only (expected, serving the YouTube MKV→mp3 primary need); `EnsureCachedFormat` carries a `cacheTranscodeTimeout` (15min) fallback to prevent a stuck ffmpeg from permanently holding `transcodeSem`
 - `POST /api/v1/cache-manage/validate-dir` can validate a directory in advance (auto-create + writability check + return disk space)
 - Inflight dedup: concurrent requests for the same `song.ID` download only once; when the first request is `ctx.Canceled`, later waiters retry automatically
 
 ### Volume normalization (`/songs/{id}/play?normalize=1`)
 
 EBU R128 loudness normalization (songloft-org/songloft#315), removing loudness gaps between sources.
-Currently only the miot plugin uses it (settings page "volume normalization" toggle → config key
-`volume_normalize` → `buildSongURL` appends `&normalize=1&format=mp3`).
+Clients request normalization with the `normalize=1` parameter in the playback URL.
 
 - The filter string is the package-level constant `loudnormFilter` in `internal/services`
   (`loudnorm=I=-16:LRA=11:TP=-1.5`, **single-pass** dynamic mode). On-disk transcoding and the live
@@ -708,12 +713,9 @@ Currently only the miot plugin uses it (settings page "volume normalization" tog
   with non-normalized ones
 - **Streams while transcoding when the artifact isn't ready** (`tryLiveTranscodeStream` →
   `StreamSeekedMP3`, `internal/handlers/music.go`): `GetOrTranscode` is synchronous, so
-  time-to-first-byte equals the wall-clock time of transcoding the whole track. Two measurements: a
-  whole-track loudnorm takes 20+ seconds and stalls the device's first play request for that entire
-  time (songloft-org/songloft-plugin-miot#61 measured `dur_ms=22392/24348/22381`) — on the speaker
-  this is "the first 20-odd seconds are blank", and since the plugin's auto-next timer starts the
-  moment the URL is pushed, the tail gets cut by the same amount; and plain `?format=` / `?quality=`
-  transcoding takes 5+ seconds before any sound on a weak CPU (N5095) when converting lossless to
+  time-to-first-byte equals the wall-clock time of transcoding the whole track. Whole-track loudnorm
+  takes 20+ seconds; plain `?format=` / `?quality=` transcoding takes 5+ seconds before any sound
+  on a weak CPU (N5095) when converting lossless to
   mp3 (songloft-org/songloft#442). Piping directly took time-to-first-byte from 10.03s to 0.088s in
   the normalize case. **Both `format` and `quality` are covered** (`SeekStreamOptions.Bitrate` lets
   the pipe faithfully express `?quality=` instead of being pinned to 320k); only applies when the
@@ -780,19 +782,13 @@ Currently only the miot plugin uses it (settings page "volume normalization" tog
 - **Prewarming must carry normalize**: `prepareSongPlayback`'s `normalize` parameter must not be
   dropped, and the short-circuit check needs `!normalize` — for an mp3 source with `format=mp3`,
   `NeedsTranscodeForServe` is false, so without it prewarming returns immediately and does nothing
-  (the other half of #61's root cause; not a single `prefetch ready` line appears in the log)
-- Plugin-side counterpart: in random mode `PlaylistManager.reserveNextIndex()` locks "the track that
-  was prewarmed" to "the track that will actually play". `getNextIndex()` re-rolls on every call, so
-  prewarming and advancing each calling it once inevitably warms the wrong track (measured 492/500 mismatches)
+  (not a single `prefetch ready` line appears in the log)
 
 ### Server-side seek stream (`/songs/{id}/play?seek=<seconds>`)
 
-Expresses a resume position for URL-push clients. A Xiaomi speaker handed a URL via `player_play_url`
-plays from the start of the stream. Its firmware does send Range for segmented buffering, but the
-plugin still expresses "resume at second N" with a new URL, having the server produce a stream that
-**begins at second N** (songloft-org/songloft-plugin-miot#60:
-firmware ignores pause → escalate to stop → device-side media context is lost → resuming can
-only re-push the URL). Implemented in `internal/services/seek_stream.go`, structurally identical
+Expresses a resume position for URL-push clients. A `seek=N` request produces a new stream that
+**begins at second N**. Range expresses byte offsets within that stream; the two have independent
+semantics. Implemented in `internal/services/seek_stream.go`, structurally identical
 to `radio_transcode.go` (`Peek(1)` confirms real output before committing the response,
 otherwise a sentinel error lets the handler degrade losslessly to serving the whole file).
 
@@ -810,8 +806,8 @@ otherwise a sentinel error lets the handler degrade losslessly to serving the wh
   local file requires synchronously downloading the whole track, which would stall the resume
   keypress for an entire download. Radio (live, no position), `media=video` (`-vn` drops the
   picture) and HEAD all ignore it
-- **seek must be clamped to at least 3s before the end** (the same guard in `parseSeekSeconds`
-  and in the plugin's `playCurrent`): past the end of file → ffmpeg produces nothing → the
+- **seek must be clamped to at least 3s before the end** (`parseSeekSeconds`; clients must honor
+  the same boundary): past the end of file → ffmpeg produces nothing → the
   fallback kicks in → **the whole track replays from the start**, which is worse than ignoring seek
 - **Doesn't hold `transcodeSem`** (the process lives for the remaining track duration and would
   starve other transcodes); uses a separate `cap=4` semaphore in the same file that degrades
@@ -833,44 +829,6 @@ otherwise a sentinel error lets the handler degrade losslessly to serving the wh
 - With a known duration, no speed change, and the other `planCBRRange` prerequisites met, responses
   include `Content-Length` / `Accept-Ranges: bytes` and can return 206 for partial requests. Only other
   cases use chunked responses with no length. Both use `Cache-Control: no-store`
-- Plugin-side counterpart: `PlaylistManager.streamSeekOffsetSec` remembers where the current
-  stream starts. To the device a seek stream is "a new stream starting at 0", so the
-  `play_song_detail.position` it reports is only an in-stream offset and **every consumer must
-  add the offset back** (`resolvePlayerStatus` in `handlers/playlist.ts`, recovery decisions in
-  `playback/voice_resume.ts`), otherwise the web progress bar drops back to 0 after resuming and
-  auto-advance is delayed by a whole seek duration
-
-### MIoT resume and replay: historical regression constraints (songloft-org/songloft#516)
-
-- **The same symptom can have different causes**: search all issues in both the parent and plugin
-  repositories, then cross-check relevant bodies, comments, fix commits, and existing tests. Include
-  parent #171/#404/#408/#449/#481/#488/#490/#495/#500/#503/#514 and
-  `songloft-org/songloft-plugin-miot#54/#60/#61/#63/#87/#88/#95/#96` at minimum. A closed issue does not
-  rule out a regression. Distinguish code defects from unpublished fixes, outdated plugins, and old ffmpeg images.
-- **Local clock drift alone must not trigger a URL repush**: buffering can put the speaker behind;
-  status 0/2 can also be wrong (#449). Automatic recovery identifies replay using matching media,
-  advancing fresh samples, and at least one sample within the first three stream seconds that is
-  significantly behind the saved position. Convert stream seconds with `position * speed + seekOffset`
-  first. Unknown media identity, duplicate cache samples, and samples from before the interaction cannot prove replay.
-- **A reset counter must not overwrite the saved position**: voice tasks retain the interruption
-  anchor; paused/stopped readbacks cannot move it back to zero. `resetAutoNextTimer` is shared by
-  HTTP/WS status fusion and smart resume, and must reject counter-reset calibration while suspended.
-  Fixing only `VoiceResumeCoordinator` leaves status polling free to overwrite the position, increment
-  the revision, and cancel recovery (#171).
-- **New operations win and track-transition rules stay consistent**: check task identity and playback
-  revision after every await. Late results cannot restore an old track after pause, stop, next, a new
-  dialogue, or DLNA takeover (#408/#494). Normal resume must rebuild the remaining-time timer and keep
-  `transitionOffset` / speed (#404, plugin #87/#88). Restart detection must not replace tail completion
-  verification (#481/#495). Automatic recovery near the end uses a safe integer second before the tail
-  guard, preventing seek rejection from replaying the entire track.
-- **Evidence and verification**: compare request `range`, response `content_range/content_length`, and
-  actual `bytes` in access logs. Neither 206 nor repeated GET proves full reloading, and downloaded bytes
-  are not listening progress. Inspect complete ffmpeg `error/output`; in-app upgrades do not update
-  ffmpeg inside the image (#403). Run plugin `player_failures`, `player_status`, `player_transition`,
-  `mina_status`, frontend slider/status tests, and backend playback/Range/timer tests. On Node 22 use
-  `node --experimental-strip-types --test tests/*.test.mjs`; do not omit tests that import TS directly.
-  Automated success only establishes covered scenarios. Record real-speaker, problem-audio, and long-running
-  acceptance separately; do not claim these are complete without evidence.
 
 ### Song persistence (song_downloader — plugin infrastructure)
 
