@@ -22,8 +22,17 @@ The parent owns backend behavior, public host contracts, and shared workflow. Ch
 4. Validate according to risk and self-review. Bug tests fail for the intended behavior against old code in an isolated copy and pass against the fix; compilation failures/skips do not count. Use deliberate break checks where useful; validate low-risk copy changes proportionally.
 5. Exercise actual UI/platform behavior. Screenshots establish rendering; HTTP, state, processes, or device samples establish actions. Fixtures do not replace real-account/device checks.
 6. Deliver changes, validation evidence, checks not run, remaining concerns, and commit messages. Required checks must pass before committing; missing required validation is a reported blocker.
+7. After an authorized push of an Issue-related fix, proactively prepare the reply draft and show its target Issue. Follow the next section for comment approval and read-back verification, updating content as CI and release results arrive.
 
 Investigation, edits, formatting, tests, review, and scoped lessons proceed continuously. Commits, pushes, formal releases, and Issue comments/closures each need explicit authorization; already granted permission remains valid. Implementing this workflow does not authorize claiming arbitrary Issues, continuous unattended execution, or changing production data.
+
+## Linked Issue Replies
+
+- When a fix relates to a user-assigned Issue or an Issue referenced by its commits, proactively prepare a reply draft after a successful push. Cover parent, child, and cross-repository references using full `owner/repo#number` identifiers and links; do not wait for the user to ask whether you replied. Drafting is part of delivery and needs no additional authorization.
+- State the behavior actually fixed, established cause, fix commits, validation and checks not run, remaining concerns, and user next steps. Distinguish pushed code, a published package containing the fix, and device acceptance. Report pending CI, unavailable release fixes, and listening checks not run accurately. Update the draft when subsequent CI or release results change those conclusions.
+- Without applicable comment authorization, show the complete draft, target Issue, and specific action awaiting approval in the final delivery (for example, “After confirmation, post the above comment to songloft-org/songloft#495”), then wait for confirmation before posting. Each confirmation applies only to the specific action shown; approval to commit/push or release does not automatically authorize comments or Issue closure.
+- If the current conversation already authorizes the comment, post it directly without asking again. Only the unauthorized comment waits; continue other authorized work. Comments and closure require separate authorization; do not close an Issue on your own while acceptance or remaining work is pending.
+- Review current comments before posting to avoid duplicate or outdated content. Read the posted body back to verify its target and content, then provide the comment link in delivery. Do not invent a reply target when no Issue is associated.
 
 ## Validation Evidence
 
