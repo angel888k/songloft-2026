@@ -39,6 +39,17 @@ Releases include `version.json` and `checksums.txt`. Downloadable dev packages a
 
 Standalone Web shows a server-address field; embedded uses the same-origin server and hides that field. Both require suitable MIME types and isolation headers. Replacing Go's embedded Flutter assets does not automatically satisfy the Lynx host contract. See [Web deployment](player-lynx/web-deployment.md); subpath deployment is unverified.
 
+## Third-party clients
+
+### Songloft Desktop (community desktop client)
+
+[Songloft Desktop](https://github.com/edwinhuish/songloft-desktop) is an Electron desktop client independently maintained by edwinhuish for Windows, macOS, and Linux. It requires an existing Songloft server.
+
+- [Downloads and installers](https://github.com/edwinhuish/songloft-desktop/releases/latest); see the project's instructions for available packages and installation steps on each platform.
+- [Project documentation and source](https://github.com/edwinhuish/songloft-desktop); report client issues to that project.
+
+See [Third-party Clients in the quick start](quick-start.md#🌐-third-party-clients) for more community clients.
+
 ## Releases and documentation upkeep
 
 Preview a Lynx release in its own repository with `pnpm run release patch --dry-run`. Actual release synchronizes versions and atomically pushes main and its version tag. A client release does not require changing the server version.

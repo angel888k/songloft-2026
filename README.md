@@ -221,6 +221,7 @@ Android 提供 release 签名 APK，iOS 提供需自行重签的 IPA，HarmonyOS
 
 | 客户端 | 平台 | 说明 |
 |--------|------|------|
+| [Songloft Desktop](https://github.com/edwinhuish/songloft-desktop) | Windows / macOS / Linux | edwinhuish 独立维护的 Electron 桌面客户端，需连接 Songloft 服务端 |
 | [音乐方舟](https://musicark.pro/) | HarmonyOS | HarmonyOS NEXT 多源媒体播放器，16 类媒体库一站聚合 |
 | [箭头音乐](https://www.amcfy.com/) | Android / iOS / HarmonyOS / Windows / macOS | 现代化多平台音乐播放器，兼容多种音乐服务器协议 |
 | [音流](https://music.aqzscn.cn/) | Android / iOS / macOS / Windows | 跨平台 NAS 音乐播放器，支持多种自托管音乐服务 |

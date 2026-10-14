@@ -39,6 +39,17 @@ Songloft 提供 Flutter 与 Lynx 两套播放器客户端；它们连接同一�
 
 Web standalone 显示服务器地址输入；embedded 使用同源服务器并隐藏该输入。两者都需要正确的 MIME 与隔离响应头；替换 Go 的 Flutter 内嵌资源并不能自动满足 Lynx 宿主契约。部署请参阅 [Web 指南](player-lynx/web-deployment.md)，子路径部署目前未验证。
 
+## 第三方客户端
+
+### Songloft Desktop（社区桌面客户端）
+
+[Songloft Desktop](https://github.com/edwinhuish/songloft-desktop) 是由 edwinhuish 独立维护的 Electron 桌面客户端，面向 Windows、macOS 和 Linux。使用时需连接已有的 Songloft 服务端。
+
+- [下载与安装包](https://github.com/edwinhuish/songloft-desktop/releases/latest)；各平台可用包与安装步骤以该项目说明为准。
+- [项目说明与源码](https://github.com/edwinhuish/songloft-desktop)；使用问题请向该项目反馈。
+
+更多社区客户端见[快速开始中的第三方客户端](quick-start.md#🌐-第三方客户端)。
+
 ## 发布与文档维护
 
 Lynx 在自己的仓库使用 `pnpm run release patch --dry-run` 审核发版计划，实际发版同步版本并原子推送 main 与版本 tag。无需为客户端发版同步修改服务端版本。

@@ -221,6 +221,7 @@ The following third-party clients are independently maintained by community deve
 
 | Client | Platforms | Description |
 |--------|-----------|-------------|
+| [Songloft Desktop](https://github.com/edwinhuish/songloft-desktop) | Windows / macOS / Linux | Electron desktop client independently maintained by edwinhuish; requires a Songloft server |
 | [MusicArk (音乐方舟)](https://musicark.pro/) | HarmonyOS | Multi-source media player for HarmonyOS NEXT with 16 library types |
 | [Amcfy Music (箭头音乐)](https://www.amcfy.com/) | Android / iOS / HarmonyOS / Windows / macOS | Modern multi-platform music player compatible with various music server protocols |
 | [Stream Music (音流)](https://music.aqzscn.cn/) | Android / iOS / macOS / Windows | Cross-platform NAS music player supporting multiple self-hosted music services |
