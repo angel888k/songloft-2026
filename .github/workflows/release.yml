@@ -1153,6 +1153,16 @@ jobs:
           cd clients/player
           flutter pub get
 
+      - name: Test Windows WebView window synchronization
+        shell: pwsh
+        run: |
+          cmake -S clients/player/test/native/windows -B clients/player/build/native-webview-tests
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cmake --build clients/player/build/native-webview-tests --config Release
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          ctest --test-dir clients/player/build/native-webview-tests -C Release --output-on-failure
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
       - name: Build Flutter Windows with embedded backend
         run: |
           cd clients/player
@@ -1161,6 +1171,7 @@ jobs:
       - name: Package ZIP
         shell: pwsh
         run: |
+          Copy-Item clients/player\build\native-webview-tests\Release\webview_hit_test.exe -Destination clients/player\build\windows\x64\runner\Release\ -ErrorAction Stop
           Compress-Archive -Path clients/player\build\windows\x64\runner\Release\* -DestinationPath songloft-bundled-windows-x64.zip
 
       - name: Upload artifacts
