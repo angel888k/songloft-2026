@@ -43,6 +43,8 @@ func (h *BridgeHandler) handleNet(action, data string) (string, error) {
 		return h.netUDPGetLocalAddr(data)
 	case "net.tcpConnect", "net.tcpSend", "net.tcpClose":
 		return h.handleTCP(action, data)
+	case "net.httpStreamCreate", "net.httpStreamHeaders", "net.httpStreamRead", "net.httpStreamCancel":
+		return h.handleHTTPStream(action, data)
 	default:
 		return "", fmt.Errorf("unknown net action: %s", action)
 	}

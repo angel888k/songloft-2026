@@ -340,6 +340,11 @@ func (hc *HealthChecker) checkIdle(svc *JSService) bool {
 		return false
 	}
 
+	if svc.HasActiveHTTPStreams() {
+		slog.Debug("plugin has active HTTP streams, not idle", "plugin", entryPath)
+		return false
+	}
+
 	// 有活跃 UDP socket 的插件不休眠
 	if svc.HasActiveUDPSockets() {
 		slog.Debug("plugin has active UDP sockets, not idle",

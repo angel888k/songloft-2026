@@ -496,6 +496,32 @@ resp.headers.forEach(function(value, name) { /* ... */ });
 
 `onHTTPRequest`、`onWebSocket` 和事件回调都可以是 `async function`，框架会等待 Promise settle。
 
+### songloft.net.httpStream — 可取消的分块 HTTP 请求
+
+声明 `net` 权限。`httpStream` 同步返回句柄，`response` 等待响应头，`read()` 每次最多返回 16 KiB 原始字节，`null` 表示结束；一次只能有一个读取在等待。`cancel()` 幂等，可取消连接建立及正在等待的读取。宿主最多保留每插件 8 个请求、64 MiB 响应、4 MiB 字符串请求体；`timeoutMs` 是连接与整个响应体的总期限（100–30000 ms，默认 30000）。
+
+请求复用 `fetch` 的 TLS、重定向和内部控制头规则，`timeoutMs` 覆盖内部超时头。响应头是保留多值的 `Record<string, string[]>`。EOF、错误、超时、卸载和休眠会回收请求；活跃请求阻止空闲休眠。读取由消费者拉取，不把响应块无限推入 JS 事件队列。旧宿主没有该方法，调用前检测能力。它不解析 SSE，也不自动重连；跨块 UTF-8 解码与协议解析由调用方完成。
+
+```typescript
+if (typeof songloft.net.httpStream === 'function') {
+  const request = songloft.net.httpStream('https://example.com/events', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ stream: true }), timeoutMs: 30000,
+  });
+  try {
+    const { status, headers } = await request.response;
+    if (status < 200 || status >= 300) throw new Error(`HTTP ${status}`);
+    for (;;) {
+      const chunk = await request.read();
+      if (chunk === null) break;
+      // Feed bytes to an incremental protocol parser.
+    }
+  } finally {
+    await request.cancel();
+  }
+}
+```
+
 ### Crypto（全局 crypto）
 
 运行时提供轻量 `crypto` 工具对象。**无需声明权限**。
@@ -931,7 +957,7 @@ globalThis.onHTTPRequest = (req: HTTPRequest) => router.handle(req);
 | `fs:external` | 访问管理员配置的外部目录 |
 | `websocket` | 使用 `new WebSocket(...)` 主动连接外部服务，或处理入站 `onWebSocket` upgrade |
 | `persistent-storage` | 读写卸载插件后仍保留的持久化存储 |
-| `net` | 使用原始网络 socket（UDP / 出站 TCP） |
+| `net` | 使用网络 socket（UDP / 出站 TCP）及可取消的分块 HTTP 请求 |
 | `net:insecure-tls` | 允许 `fetch` 带 `X-Fetch-Insecure` 跳过 TLS 证书校验（自签 / 裸 IP 访问的自建设备）。**不被 `net` 覆盖，必须单独声明** |
 | `fs.*` | 文件系统通配符（覆盖 `fs`、`fs:music`、`fs:external`） |
 

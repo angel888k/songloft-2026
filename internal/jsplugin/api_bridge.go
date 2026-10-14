@@ -508,6 +508,50 @@ songloft.covers = {
 
 // === songloft.net — 网络 socket（UDP / TCP）===
 songloft.net = {
+    // Pull-based HTTP. The handle is available before headers, so cancellation
+    // also works during connection setup. Cancellation never waits for a read.
+    httpStream: function(url, options) {
+        var opts = options || {};
+        var cancelled = false, reading = false, done = false;
+        var created = __callBridge('net.httpStreamCreate', JSON.stringify({
+            url: url, method: opts.method || 'GET', headers: opts.headers || {},
+            body: opts.body || '', timeoutMs: opts.timeoutMs || 30000
+        })).then(function(s) { return JSON.parse(s); });
+        var response = created.then(async function(info) {
+            if (cancelled) {
+                await __callBridge('net.httpStreamCancel', JSON.stringify({id: info.id}));
+                throw new Error('HTTP stream cancelled');
+            }
+            return JSON.parse(await __callBridge('net.httpStreamHeaders', JSON.stringify({id: info.id})));
+        });
+        // A caller may cancel without ever awaiting response.
+        response.catch(function() {});
+        return {
+            response: response,
+            read: async function() {
+                if (cancelled) throw new Error('HTTP stream cancelled');
+                if (done) return null;
+                if (reading) throw new Error('HTTP stream read already pending');
+                reading = true;
+                try {
+                    await response;
+                    var info = await created;
+                    if (cancelled) throw new Error('HTTP stream cancelled');
+                    var chunk = JSON.parse(await __callBridge('net.httpStreamRead', JSON.stringify({id: info.id})));
+                    if (chunk.done) { done = true; return null; }
+                    var raw = atob(chunk.data), bytes = new Uint8Array(raw.length);
+                    for (var i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
+                    return bytes;
+                } finally { reading = false; }
+            },
+            cancel: function() {
+                cancelled = true;
+                return created.then(function(info) {
+                    return __callBridge('net.httpStreamCancel', JSON.stringify({id: info.id}));
+                }, function() {});
+            }
+        };
+    },
     _handlers: {},      // UDP: socketId -> onData 回调
     _tcpSockets: {},    // TCP: socketId -> { _dataHandler, _closeHandler, closed }
     udpBind: async function(options) {
@@ -648,14 +692,17 @@ type BridgeHandler struct {
 	udpSockets                sync.Map                    // map[socketID]*managedUDPSocket — UDP socket 跟踪
 	tcpSockets                sync.Map                    // map[socketID]*managedTCPSocket — 出站 TCP 连接跟踪
 	socketIDSeq               atomic.Uint64               // UDP/TCP socket ID 共享的递增序号
-	inboundWebSockets         sync.Map                    // map[connID]*managedInboundWebSocket — 入站 WebSocket 连接
-	inboundWebSocketIDSeq     atomic.Uint64               // 入站 WebSocket 连接 ID 递增序号
-	onPlayEventRegister       func(entryPath string)      // 播放事件订阅回调
-	onPlayEventUnregister     func(entryPath string)      // 播放事件取消订阅回调
-	onLyricProviderRegister   func(entryPath string)      // 歌词提供者注册回调
-	onLyricProviderUnregister func(entryPath string)      // 歌词提供者取消注册回调
-	onCoverProviderRegister   func(entryPath string)      // 封面提供者注册回调
-	onCoverProviderUnregister func(entryPath string)      // 封面提供者取消注册回调
+	httpMu                    sync.Mutex
+	httpStreams               map[string]*managedHTTPStream
+	httpClosed                bool
+	inboundWebSockets         sync.Map               // map[connID]*managedInboundWebSocket — 入站 WebSocket 连接
+	inboundWebSocketIDSeq     atomic.Uint64          // 入站 WebSocket 连接 ID 递增序号
+	onPlayEventRegister       func(entryPath string) // 播放事件订阅回调
+	onPlayEventUnregister     func(entryPath string) // 播放事件取消订阅回调
+	onLyricProviderRegister   func(entryPath string) // 歌词提供者注册回调
+	onLyricProviderUnregister func(entryPath string) // 歌词提供者取消注册回调
+	onCoverProviderRegister   func(entryPath string) // 封面提供者注册回调
+	onCoverProviderUnregister func(entryPath string) // 封面提供者取消注册回调
 }
 
 // NewBridgeHandler 创建桥接处理器

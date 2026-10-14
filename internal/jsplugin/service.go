@@ -591,6 +591,16 @@ func (s *JSService) HasRunningProcesses() bool {
 	return hasProc
 }
 
+// HasActiveHTTPStreams 防止等待响应的流式请求被空闲休眠中断。
+func (s *JSService) HasActiveHTTPStreams() bool {
+	if s.bridgeHandler == nil {
+		return false
+	}
+	s.bridgeHandler.httpMu.Lock()
+	defer s.bridgeHandler.httpMu.Unlock()
+	return len(s.bridgeHandler.httpStreams) > 0
+}
+
 // HasActiveUDPSockets 检查插件是否有活跃的 UDP socket。
 // 由 HealthChecker.checkIdle 调用，防止有活跃 socket 的插件被休眠。
 func (s *JSService) HasActiveUDPSockets() bool {

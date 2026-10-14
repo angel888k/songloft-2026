@@ -2019,7 +2019,7 @@ func redactHeadersForLog(h map[string]string) map[string]string {
 	return out
 }
 
-func doHTTPRequest(url, method, headersJSON, bodyHex string, allowInsecure bool) string {
+func startHTTPRequest(parent context.Context, url, method, headersJSON, bodyHex string, allowInsecure bool) (*http.Response, context.CancelFunc, error) {
 	slog.Debug("doHTTPRequest", "url", url, "method", method, "headers", logging.Redact(headersJSON))
 
 	// 解析并设置请求头
@@ -2062,21 +2062,22 @@ func doHTTPRequest(url, method, headersJSON, bodyHex string, allowInsecure bool)
 		insecure = false
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
+	ctx, cancel := context.WithTimeout(parent, timeout)
 
 	var reqBody io.Reader
 	if bodyHex != "" {
 		bodyBytes, err := hex.DecodeString(bodyHex)
 		if err != nil {
-			return marshalFetchError("request body hex decode error: " + err.Error())
+			cancel()
+			return nil, nil, fmt.Errorf("request body hex decode error: %w", err)
 		}
 		reqBody = bytes.NewReader(bodyBytes)
 	}
 
 	req, err := http.NewRequestWithContext(ctx, method, url, reqBody)
 	if err != nil {
-		return marshalFetchError(err.Error())
+		cancel()
+		return nil, nil, err
 	}
 
 	if headers != nil {
@@ -2123,9 +2124,20 @@ func doHTTPRequest(url, method, headersJSON, bodyHex string, allowInsecure bool)
 
 	resp, err := client.Do(req)
 	if err != nil {
+		cancel()
+		return nil, nil, err
+	}
+	return resp, cancel, nil
+}
+
+func doHTTPRequest(url, method, headersJSON, bodyHex string, allowInsecure bool) string {
+	resp, cancel, err := startHTTPRequest(context.Background(), url, method, headersJSON, bodyHex, allowInsecure)
+	if err != nil {
 		return marshalFetchError(err.Error())
 	}
+	defer cancel()
 	defer resp.Body.Close()
+	url = resp.Request.URL.String()
 
 	// 限制读入内存的响应体大小，防止异常/恶意大响应 OOM。
 	bodyBytes, err := io.ReadAll(io.LimitReader(resp.Body, maxFetchBodyBytes+1))

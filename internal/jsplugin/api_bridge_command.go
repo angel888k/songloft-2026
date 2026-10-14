@@ -61,6 +61,7 @@ func (h *BridgeHandler) Cleanup() {
 	})
 	h.cleanupUDPSockets()
 	h.cleanupTCPSockets()
+	h.cleanupHTTPStreams()
 	h.cleanupInboundWebSockets()
 }
 

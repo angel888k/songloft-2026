@@ -498,6 +498,32 @@ These methods are **non-enumerable**, so `Object.keys(resp.headers)`, `for...in`
 
 `onHTTPRequest`, `onWebSocket`, and event callbacks can all be `async function`; the framework waits for the Promise to settle.
 
+### songloft.net.httpStream — Cancellable HTTP body reads
+
+Declare the `net` permission. `httpStream` returns a handle synchronously; `response` waits for headers, and `read()` returns at most 16 KiB of raw bytes or `null` at EOF. Only one read may be pending. Idempotent `cancel()` aborts connection setup and pending reads. Limits are eight requests per plugin, a 64 MiB response, and a 4 MiB string request body. `timeoutMs` covers connection and the entire body (100–30000 ms, default 30000).
+
+Requests share fetch TLS, redirect, and internal control-header rules; `timeoutMs` overrides the internal timeout header. Headers preserve repeated values as `Record<string, string[]>`. EOF, errors, deadlines, unload, and sleep release requests; live requests prevent idle sleep. Consumer-driven reads avoid an unbounded body-event queue. Older hosts lack this method: detect it before calling. There is no SSE parsing or automatic reconnect; callers handle protocol framing and UTF-8 across chunks.
+
+```typescript
+if (typeof songloft.net.httpStream === 'function') {
+  const request = songloft.net.httpStream('https://example.com/events', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ stream: true }), timeoutMs: 30000,
+  });
+  try {
+    const { status, headers } = await request.response;
+    if (status < 200 || status >= 300) throw new Error(`HTTP ${status}`);
+    for (;;) {
+      const chunk = await request.read();
+      if (chunk === null) break;
+      // Feed bytes to an incremental protocol parser.
+    }
+  } finally {
+    await request.cancel();
+  }
+}
+```
+
 ### Crypto (Global crypto)
 
 The runtime provides a lightweight `crypto` utility object. **No permission declaration required.**
@@ -933,7 +959,7 @@ Consistent with `AllPermissions` in the backend's `internal/jsplugin/permissions
 | `fs:external` | Access administrator-configured external directories |
 | `websocket` | Use `new WebSocket(...)` to actively connect to external services, or handle inbound `onWebSocket` upgrades |
 | `persistent-storage` | Read/write persistent storage that remains after the plugin is uninstalled |
-| `net` | Use raw network sockets (UDP / outbound TCP) |
+| `net` | Use network sockets (UDP / outbound TCP) and cancellable HTTP body reads |
 | `net:insecure-tls` | Allow `fetch` to skip TLS certificate verification via `X-Fetch-Insecure` (self-signed / bare-IP access to self-hosted devices). **Not covered by `net`; must be declared separately** |
 | `fs.*` | File system wildcard (covers `fs`, `fs:music`, `fs:external`) |
 
