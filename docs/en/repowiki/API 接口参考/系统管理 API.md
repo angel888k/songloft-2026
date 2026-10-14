@@ -354,3 +354,58 @@ Automatically sets a 7-day cache for image resources (`max-age=604800`).
 ---
 
 **Section source:** `internal/handlers/health.go` / `internal/handlers/version.go` / `internal/handlers/upgrade.go` / `internal/handlers/proxy.go` / `internal/app/routers.go` / `internal/models/models.go`
+
+## Additional current interfaces
+
+These interfaces fill gaps in the earlier inventory. The corresponding handler and Swagger define request fields, response models, and side effects.
+
+### GET /api/v1/logs/export
+
+Export redacted backend logs.
+
+| Status | Response type |
+| --- | --- |
+| 200 | `file` |
+| 500 | `object` |
+### GET /api/v1/proxy/transcode
+
+Stream a transcoded remote URL.
+
+| Parameter | Location | Type | Required |
+| --- | --- | --- | --- |
+| `url` | query | `string` | true |
+| `format` | query | `string` | false |
+| `bitrate` | query | `integer` | false |
+| `duration` | query | `number` | false |
+| `user_agent` | query | `string` | false |
+| `referer` | query | `string` | false |
+
+| Status | Response type |
+| --- | --- |
+| 200 | `file` |
+| 400 | `object` |
+| 403 | `object` |
+| 503 | `object` |
+### POST /api/v1/upgrade/upload
+
+Upload and inspect a backend binary.
+
+| Parameter | Location | Type | Required |
+| --- | --- | --- | --- |
+| `file` | formData | `file` | true |
+
+| Status | Response type |
+| --- | --- |
+| 200 | `UploadedBinaryInfo` |
+| 400 | `ErrorResponse` |
+| 403 | `ErrorResponse` |
+| 500 | `ErrorResponse` |
+### POST /api/v1/upgrade/upload/confirm
+
+Confirm replacement with an uploaded binary.
+
+| Status | Response type |
+| --- | --- |
+| 200 | `SuccessResponse` |
+| 400 | `ErrorResponse` |
+| 403 | `ErrorResponse` |

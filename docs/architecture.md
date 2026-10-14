@@ -2,13 +2,13 @@
 
 Songloft 是一个自托管的本地音乐服务器，采用前后端分离架构。支持两种运行模式：**服务器模式**（独立部署 Go 后端）和 **Bundle 本地模式**（Go 后端嵌入 Flutter 客户端，无需单独部署服务器）。
 
-服务器模式同时支持 Flutter 与 ReactLynx 客户端。Lynx 目前为 Android/iOS/HarmonyOS/Web 预览版，无桌面或 Bundle 模式；下方的客户端架构图描述默认 Flutter 方案。
+服务器模式支持 Flutter、ReactLynx、官方 Electron Desktop 与 Android TV 客户端。Lynx 目前为 Android/iOS/HarmonyOS/Web 预览版，无桌面或 Bundle 模式；下方的客户端架构图描述默认 Flutter 方案。
 
 ## 架构文档导航
 
 - **[后端架构](./architecture_backend.md)** - Go 后端 API 服务详细架构
 - **[前端架构](./architecture_frontend.md)** - Flutter 跨平台前端详细架构
-- **[客户端选择](./clients.md)** - Flutter 与 Lynx 的平台、能力和下载入口
+- **[客户端选择](./clients.md)** - Flutter、Lynx、Electron Desktop 与 TV 的平台、能力和下载入口
 - **[Lynx 客户端](./player-lynx/index.md)** - 安装、构建、测试与独立发版指南
 - **[颜色系统](./color_system.md)** - Material 3 颜色体系和主题规范
 - **[快速开始](./quick-start.md)** - 快速上手指南（由 README.md 同步生成）
@@ -78,7 +78,7 @@ Songloft 是一个自托管的本地音乐服务器，采用前后端分离架�
 
 | 技术 | 版本 | 说明 |
 |------|------|------|
-| Flutter | 3.29+ | 跨平台 UI 框架 |
+| Flutter | 3.41+ | 跨平台 UI 框架 |
 | Dart | 3.7+ | 编程语言 |
 | Riverpod | ^3.1.0 | 状态管理 |
 | GoRouter | ^17.1.0 | 声明式路由 |
@@ -197,7 +197,7 @@ make build-frontend-all            # 当前系统支持的所有平台
 | **configs** | 系统配置 | key(唯一), value(JSON) |
 | **auth_tokens** | 认证令牌 | token_id, token_type(access/refresh), expires_at, revoked_at |
 | **js_plugins** | JS 插件信息 | name, version, entry_path, main, permissions, file_path, status(active/inactive/error), zip_hash, entry_hash |
-| **plugin_storage** | JS 插件 KV 存储（`host.storage` 桥接） | plugin_entry_path, key(联合唯一), value |
+| **plugin_storage** | JS 插件 KV 存储（`songloft.persistentStorage` 桥接） | plugin_entry_path, key(联合唯一), value |
 | **play_history** | 播放历史（按播放上下文记忆） | context_type, context_key, song_id, played_at, play_count |
 | **theme_packs** | 主题包（声明式 JSON） | theme_id(唯一), name, schema_version, raw_json |
 | **song_tags** | 自定义标签 | name(唯一 NOCASE), color |

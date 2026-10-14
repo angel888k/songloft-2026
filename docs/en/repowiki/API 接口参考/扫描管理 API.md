@@ -486,3 +486,16 @@ Configures the enabled state and scan interval of auto scan. Takes effect immedi
 ---
 
 **Section source:** `internal/handlers/scan.go` / `internal/app/routers.go` / `internal/services/scan_progress.go` / `internal/services/fingerprint.go`
+
+## Additional current interfaces
+
+These interfaces fill gaps in the earlier inventory. The corresponding handler and Swagger define request fields, response models, and side effects.
+
+### GET /api/v1/scan/fingerprints/failed
+
+List failed fingerprint attempts.
+
+| Status | Response type |
+| --- | --- |
+| 200 | `object` |
+| 500 | `object` |

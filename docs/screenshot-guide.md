@@ -19,7 +19,8 @@
 
    ```bash
    cd docs && npm install
-   # 若系统没有 Chrome，可改用 Chromium：npx playwright install chromium
+   # 若改用 Playwright Chromium，先安装，再将脚本 launch({ channel: "chrome" }) 改为 launch()
+   npx playwright install chromium
    ```
 
 ## 运行
@@ -51,7 +52,7 @@ SL_URL=http://localhost:58091 SL_USER=admin SL_PASS=admin npm run screenshots
 | `settings-{desktop,mobile}` | 设置 |
 | `player-mobile` | 沉浸式全屏播放器（仅移动端有全屏 Now Playing） |
 
-- 亮色 / 暗色靠注入 `flutter.theme_mode` 存储项切换，各抓一遍。
+- 亮色 / 暗色通过服务端 `/settings/user-preferences` 的 `theme_mode` 切换，并同步 `flutter.theme_mode` 本地存储；结束后恢复原服务端偏好。
 - 桌面视口 `1440×900`，设备像素比 `1.5`（约 2160px 宽）；移动视口 `390×844`，设备像素比 `2`（约 780px 宽）。
 - 落地页组件会用 CSS 给桌面图套「浏览器窗口外框」（`BrowserFrame.vue`）、给移动图套「手机外壳」（`DeviceFrame.vue`），并根据 `isDark` 自动加载 `-dark` 变体，所以脚本只需存**干净的原始截图**。
 
@@ -62,7 +63,7 @@ SL_URL=http://localhost:58091 SL_USER=admin SL_PASS=admin npm run screenshots
 1. **坐标 + 键盘登录**：等 Flutter 首帧渲染后，按登录页布局点击用户名 / 密码框并用键盘输入，再点登录按钮。坐标集中在脚本顶部的 `LOGIN` 常量里，登录页若改版需相应微调。
 2. **复用登录态**：登录成功后用 `context.storageState()` 把登录信息（`localStorage` 里的 `flutter.access_token` 等）保存下来，注入到桌面 / 移动多个视口的新上下文，**无需为每种视口分别对齐登录坐标**。
 3. **hash 路由直达**：各页面按 `#/library`、`#/playlists/1` 等路由直接导航截图（路由取自 `songloft-player` 的 `AppRoutes`）。
-4. **亮 / 暗两套**：复制一份登录态，把 `flutter.theme_mode` 改为 `dark`，把所有页面再抓一遍（暗色文件带 `-dark` 后缀）。
+4. **亮 / 暗两套**：先更新服务端 `theme_mode`，再复制登录态并同步 `flutter.theme_mode`，把所有页面再抓一遍（暗色文件带 `-dark` 后缀）。
 5. **沉浸式播放器**：移动端进入歌单详情、点第一首开始播放，再点底部迷你播放器展开全屏后截图。
 
 ## 需要调整时改哪里

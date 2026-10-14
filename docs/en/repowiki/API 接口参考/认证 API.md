@@ -1,5 +1,7 @@
 # Authentication API
 
+This page covers the five registered authentication operations: login, refresh, logout, list tokens, and revoke a token. Startup configuration determines default credentials independently of dev / release build tags; running instances use their startup flags or environment variables.
+
 This document is based on the following source files:
 
 - `internal/handlers/auth.go` -- Login, logout, token refresh, and token management handlers
@@ -23,7 +25,7 @@ Songloft uses a JWT dual-token authentication mechanism:
 
 - **Access Token**: A short-lived token used for API authorization. The client passes it via the `Authorization: Bearer <token>` request header or the `?access_token=<token>` query parameter
 - **Refresh Token**: A long-lived token used to obtain a new token after the Access Token expires, without re-logging in
-- **Default account**: `admin` / `admin` (development mode)
+- **Default account**: `admin` / `admin` (when credentials are not configured)
 - **Token types**: `access` (access token) and `refresh` (refresh token)
 - **Public endpoints**: Login and refresh require no authentication and are registered outside the authentication middleware
 - **Authorized endpoints**: All other `/api/v1/*` endpoints require a valid Access Token
@@ -138,32 +140,6 @@ Gets the list of all active tokens for the current user, used for the token mana
 
 - **401**: Unauthorized
 - **500**: Retrieval failed
-
-### GET /api/v1/auth/tokens/{token_id}
-
-Gets detailed information about a specified token.
-
-- **Authentication**: Bearer Token
-- **Path parameter**: `token_id` (string, token ID)
-- **200**: Returns a `TokenInfo` object:
-
-```json
-{
-  "token_id": "abc123",
-  "token_type": "access",
-  "client_info": "Mozilla/5.0...",
-  "expires_at": "2024-01-08T12:00:00Z",
-  "created_at": "2024-01-01T12:00:00Z",
-  "revoked_at": null,
-  "revoked_by": "",
-  "revoked_reason": ""
-}
-```
-
-- **401**: Unauthorized
-- **404**: Token does not exist
-
-> **Note**: The current implementation returns `501 Not Implemented`; this feature will be completed later.
 
 ### DELETE /api/v1/auth/tokens/{token_id}
 

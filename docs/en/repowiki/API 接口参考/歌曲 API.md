@@ -490,8 +490,8 @@ Called by the client when a song starts playing, finishes playing, or is skipped
 |------|------|------|------|
 | `source` | string | No | Caller source identifier, e.g., `songloft-player` (official client), `miot` (Xiao AI speaker plugin) |
 | `type` | string | No | Event type: `play` (start playing) / `finish` (finished playing, default) / `skip` (user skipped) |
-| `context_type` | string | No | Playback context type, **only effective when `type=play`**: `playlist` or a facet dimension (`artist`/`album`/`genre`/`year`/`decade`/`language`/`style`) |
-| `context_key` | string | No | Playback context identifier, **only effective when `type=play`**: playlist ID for `playlist`, the dimension value (e.g. artist name) for facets |
+| `context_type` | string | No | Playback context type, **only effective when `type=play`**: `playlist`, `tag`, or a facet dimension (`artist`/`album`/`genre`/`year`/`decade`/`language`/`style`) |
+| `context_key` | string | No | Playback context identifier, **only effective when `type=play`**: playlist ID for `playlist`, tag ID for `tag`, the dimension value (e.g. artist name) for facets |
 
 **Side effect:** when `type=play` and a valid `context_type` + `context_key` are both supplied, the song is additionally written to that context's play history (deduplicated by song within the context, keeping only the most recent 50 entries). A write failure is only logged and does not affect the status code. See [Play History API](播放历史%20API.md).
 
@@ -585,3 +585,130 @@ Reverse-proxies audio segments/key/init segments. Passes through Range and upstr
 **Success:** `200` Segment content | `206` Range partial content. `Cache-Control: no-store`
 
 **Errors:** `400` Invalid ID / missing u | `403` Non-same-origin / host not allowed | `404` Song does not exist | `502` Upstream unavailable
+
+## Additional current interfaces
+
+These interfaces fill gaps in the earlier inventory. The corresponding handler and Swagger define request fields, response models, and side effects.
+
+### GET /api/v1/songs/{id}/video-hls/playlist.m3u8
+
+Get a transcoded video HLS playlist.
+
+| Parameter | Location | Type | Required |
+| --- | --- | --- | --- |
+| `id` | path | `integer` | true |
+
+| Status | Response type |
+| --- | --- |
+| 200 | `string` |
+| 400 | `object` |
+| 404 | `object` |
+| 503 | `object` |
+### GET /api/v1/songs/{id}/video-hls/{path}
+
+Get a video HLS segment.
+
+| Parameter | Location | Type | Required |
+| --- | --- | --- | --- |
+| `id` | path | `integer` | true |
+| `path` | path | `string` | true |
+
+| Status | Response type |
+| --- | --- |
+| 200 | `file` |
+| 400 | `object` |
+| 404 | `object` |
+
+### PUT /api/v1/songs/{id}/song-tags
+
+Replace the complete tag set using `{"tag_ids":[1,2]}`; an empty array clears bindings. This writes `song_tag_links`, while tag creation / deletion still uses `/song-tags`. Requires a Bearer token and returns 204 with no body. When file synchronization is enabled, the service attempts write-back according to its rules. See Swagger for request and error models.
+
+## Additional song queries
+
+### GET /songs/stats
+
+Get library statistics. Requires a Bearer token.
+
+Request and response details are defined by the corresponding handler and Swagger.
+
+### GET /songs/names
+
+Get distinct nonempty song or artist names. Requires a Bearer token.
+
+| Parameter | Location | Type | Required |
+| --- | --- | --- | --- |
+| `field` | query | `string` | true |
+
+Request and response details are defined by the corresponding handler and Swagger.
+
+### GET /songs/folders
+
+Browse folders. Requires a Bearer token.
+
+| Parameter | Location | Type | Required |
+| --- | --- | --- | --- |
+| `path` | query | `string` | false |
+| `keyword` | query | `string` | false |
+
+Request and response details are defined by the corresponding handler and Swagger.
+
+### GET /songs/random
+
+Get random songs. Requires a Bearer token.
+
+| Parameter | Location | Type | Required |
+| --- | --- | --- | --- |
+| `type` | query | `string` | false |
+| `keyword` | query | `string` | false |
+| `path_prefix` | query | `string` | false |
+| `genre` | query | `string` | false |
+| `artist` | query | `string` | false |
+| `album` | query | `string` | false |
+| `language` | query | `string` | false |
+| `style` | query | `string` | false |
+| `year` | query | `integer` | false |
+| `decade` | query | `integer` | false |
+| `exclude_playlist_labels` | query | `string` | false |
+| `limit` | query | `integer` | false |
+
+Request and response details are defined by the corresponding handler and Swagger.
+
+### GET /songs/{id}/tracks
+
+Enumerate audio streams using ffprobe; if probing is unavailable or fails, the handler returns an empty array. Requires a Bearer token.
+
+| Parameter | Location | Type | Required |
+| --- | --- | --- | --- |
+| `id` | path | `integer` | true |
+
+Request and response details are defined by the corresponding handler and Swagger.
+
+### GET /songs/{id}/audio-tracks
+
+Enumerate audio tracks. Requires a Bearer token.
+
+| Parameter | Location | Type | Required |
+| --- | --- | --- | --- |
+| `id` | path | `integer` | true |
+
+Request and response details are defined by the corresponding handler and Swagger.
+
+### GET /songs/{id}/artists
+
+Get normalized song artists. Requires a Bearer token.
+
+| Parameter | Location | Type | Required |
+| --- | --- | --- | --- |
+| `id` | path | `integer` | true |
+
+Request and response details are defined by the corresponding handler and Swagger.
+
+### GET /songs/{id}/song-tags
+
+Get song tags. Requires a Bearer token.
+
+| Parameter | Location | Type | Required |
+| --- | --- | --- | --- |
+| `id` | path | `integer` | true |
+
+Request and response details are defined by the corresponding handler and Swagger.

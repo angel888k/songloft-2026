@@ -68,7 +68,7 @@ HTTP Server (main.go)
 #### fileutil/ - 文件工具
 
 - `cover_finder.go`: 外部封面查找（`FindExternalCover`）与保存（`SaveExternalCover`，按内容哈希去重存储）
-- `file_move.go`: 跨分区文件移动（`os.Rename` 失败时回退到拷贝+删除）
+- `file_move.go`: 跨分区文件移动（仅跨设备错误时回退到拷贝+删除）
 
 #### handlers/ - 请求处理器
 
@@ -123,7 +123,7 @@ HTTP Server (main.go)
 - `playlist_song_repository.go`: 歌单-歌曲关联仓储（含 `ReplaceSong` 等）
 - `token_repository.go`: 认证令牌仓储
 - `jsplugin_repository.go`: JS 插件仓储
-- `plugin_storage_repository.go`: JS 插件 KV 存储仓储（`host.storage` 桥接的后端存储）
+- `plugin_storage_repository.go`: JS 插件 KV 存储仓储（`songloft.persistentStorage` 桥接的后端存储）
 - `play_history_repository.go`: 播放历史仓储
 - `song_tag_repository.go`: 自定义标签仓储
 - `song_artist_repository.go`: 歌曲-艺术家关联仓储
@@ -172,9 +172,10 @@ HTTP Server (main.go)
 - `repository.go`: 仓储接口（实现见 `database/jsplugin_repository.go`）
 - `registry.go`: 插件订阅源解析（拉取源清单、版本比对，供更新检查/安装用）
 - `auto_update.go`: 插件自动更新（后台按订阅源检查并升级）
-- `api_bridge.go`: 宿主 API 桥接总入口（向 QuickJS 暴露 http、storage、logger、songs（含 `songs.download` 持久化）、playlists 等能力）
-- `api_bridge_net.go`: `songs.net` UDP Socket API（udpBind/多播 + reader goroutine 推送 onData）
-- `api_bridge_tcp.go`: `songs.net.tcpConnect` 出站 TCP Socket API（仅私有/回环/链路本地地址，防 SSRF）
+- `api_bridge.go`: 宿主 API 桥接总入口（分发 storage、songs、playlists、tags、net 等 Bridge API；fetch 与 console 由 jsruntime 直接提供）
+- `api_bridge_http_stream.go`: 可取消 HTTP 流句柄（net 权限、分块拉取、超时与卸载清理）
+- `api_bridge_net.go`: `songloft.net` UDP Socket API（udpBind/多播 + reader goroutine 推送 onData）
+- `api_bridge_tcp.go`: `songloft.net.tcpConnect` 出站 TCP Socket API（仅私有/回环/链路本地地址，防 SSRF）
 - `api_bridge_websocket.go`: WebSocket 客户端 API（连接/收发/事件推送）
 - `api_bridge_fs.go`: 文件系统桥接（`fs:music` 等权限下的受限读写）
 - `api_bridge_command.go`: 外部命令调用桥接
@@ -275,7 +276,7 @@ type DB interface {
 }
 ```
 
-Service 层注入 `database.DB` 接口；单表写直接拿 `db.SongRepository().Create(...)`，跨表写走 `db.RunInTx(ctx, func(ctx, uow *UnitOfWork) error { uow.Songs.Create(...); uow.PlaylistSongs.ReplaceSong(...) })`，详见 [database_migrations.md](database_migrations.md)。
+App 负责从 `database.DB` 获取仓储并装配服务；Service 注入其所需的 Repository 接口，单表写调用注入的仓储。跨表写另注入最小 `Transactor` 接口，通过 `RunInTx(ctx, func(ctx, uow *UnitOfWork) error { ... })` 使用同一事务下的仓储，详见 [database_migrations.md](database_migrations.md)。
 
 > 测试不再手写 mock，统一使用 `database/testutil.OpenMemoryDB(t)` 起 `:memory:` SQLite 跑真实迁移与真实 Repository。
 
@@ -324,7 +325,7 @@ Service 层注入 `database.DB` 接口；单表写直接拿 `db.SongRepository()
 此外，音乐文件、封面图片、歌词通过歌曲 ID 端点访问（需 `access_token` query 参数认证）：
 - `/api/v1/songs/{id}/play` — 流式返回音频（支持 local / remote / radio 三种类型 + Range）
 - `/api/v1/songs/{id}/cover` — 歌曲封面（本地歌曲走本端，网络歌曲由 `MarshalJSON` 直出原始 CDN URL）
-- `/api/v1/songs/{id}/lyric` — 纯文本 LRC 歌词
+- `/api/v1/songs/{id}/lyric` — 直返 LyricPayload JSON（lyric / tlyric / rlyric / lxlyric）
 
 > 旧的 `/music/*` 和 `/cover/*` Base62 编码短链方案已完全下线，相关 helper 已随路由一并删除（`routers.go` 仅保留废弃注释）。
 

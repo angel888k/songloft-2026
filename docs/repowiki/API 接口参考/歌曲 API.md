@@ -612,7 +612,7 @@ dry-run 预览目录整理变更，**不移动任何文件、不改数据库**�
 |------|------|------|------|
 | `source` | string | 否 | 调用来源标识，如 `songloft-player`（官方客户端）、`miot`（小爱音箱插件） |
 | `type` | string | 否 | 事件类型：`play`（开始播放）/ `finish`（播放完成，默认）/ `skip`（用户跳过） |
-| `context_type` | string | 否 | 播放上下文类型，**仅 `type=play` 生效**：`playlist` 或分面维度（`artist`/`album`/`genre`/`year`/`decade`/`language`/`style`） |
+| `context_type` | string | 否 | 播放上下文类型，**仅 `type=play` 生效**：`playlist`、`tag` 或分面维度（`artist`/`album`/`genre`/`year`/`decade`/`language`/`style`） |
 | `context_key` | string | 否 | 播放上下文标识，**仅 `type=play` 生效**：`playlist` 传歌单 ID，分面维度传该维度取值（如歌手名） |
 
 **副作用:** 当 `type=play` 且同时传入合法的 `context_type` + `context_key` 时，额外把该歌曲写入对应上下文的播放历史（同上下文内按歌曲去重，只保留最近 50 条）。落库失败只记日志，不影响响应码。详见 [播放历史 API](播放历史%20API.md)。
@@ -755,3 +755,40 @@ HLS 反代在 `hls_proxy` 开关开启（`PUT /settings/hls-proxy`）后生效�
 **错误:** `400` 无效 ID | `404` 歌曲不存在 | `500` 获取参与歌手失败
 
 > 可用 `PUT /songs/{id}/artists` 全量替换参与歌手（详见 Swagger）。
+
+## 当前源码补充接口
+
+以下接口补齐旧版列表遗漏。请求字段、响应模型与副作用以对应 handler 和 Swagger 为准。
+
+### GET /api/v1/songs/{id}/video-hls/playlist.m3u8
+
+获取视频 HLS 播放列表。
+
+| 参数 | 位置 | 类型 | 必填 |
+| --- | --- | --- | --- |
+| `id` | path | `integer` | true |
+
+| 状态 | 响应类型 |
+| --- | --- |
+| 200 | `string` |
+| 400 | `object` |
+| 404 | `object` |
+| 503 | `object` |
+### GET /api/v1/songs/{id}/video-hls/{path}
+
+获取视频 HLS 子资源。
+
+| 参数 | 位置 | 类型 | 必填 |
+| --- | --- | --- | --- |
+| `id` | path | `integer` | true |
+| `path` | path | `string` | true |
+
+| 状态 | 响应类型 |
+| --- | --- |
+| 200 | `file` |
+| 400 | `object` |
+| 404 | `object` |
+
+### PUT /api/v1/songs/{id}/song-tags
+
+替换歌曲的完整标签集合，请求为 `{"tag_ids":[1,2]}`；空数组清空绑定。该接口写入 `song_tag_links`，自定义标签的创建和删除仍走 `/song-tags`。需要 Bearer Token。成功返回 204，无响应体；同步文件开关启用时按服务层规则尝试写回。请求与错误模型见 Swagger。

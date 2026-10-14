@@ -313,15 +313,18 @@ The "automatically update installed plugins in the background" switch, disabled 
 }
 ```
 
-There are 14 view keys in total, in three groups:
+There are 18 view keys in total, in three groups:
 
 - **Song group**: `all` (all) / `local` (local) / `remote` (remote) / `radio` (radio)
-- **Category group**: `artist` (artist) / `album` (album) / `genre` (genre) / `year` (year) / `decade` (decade) / `language` (language) / `style` (style)
-- **Playlist group**: `playlist` (all playlists) / `playlist_normal` (normal playlists) / `playlist_radio` (radio playlists)
+- **Category group**: `folder` (folders) / `artist` (artist) / `album` (album) / `genre` (genre) / `year` (year) / `decade` (decade) / `language` (language) / `style` (style) / `tag` (custom tags)
+- **Playlist group**: `playlist` (all playlists) / `playlist_normal` (normal playlists) / `playlist_radio` (radio playlists) / `playlist_remote` (contains remote songs) / `playlist_local` (contains local songs)
 
-Returns the default when not configured (all visible, default order). The response always contains the complete 14 items: illegal keys are removed, and missing keys are appended to the end in default order (`visible=true`).
+Returns the default when not configured (all visible, default order). The response always contains the complete 18 items: illegal keys are removed, and missing keys are appended to the end in default order (`visible=true`).
 
 - **400**: Illegal or duplicate view key | **500**: Save failed
+
+
+`playlist_remote` / `playlist_local` filter playlist contents using `song_source`; they are not new playlist `type` values.
 
 ### 3.16 User Preferences
 
@@ -372,3 +375,157 @@ The client fetches these after login and pushes them when preferences are modifi
 Returns the default value when not configured (disabled + flat preset + all 0).
 
 - **400**: `bands` is not 10 elements / a band exceeds the -12 ~ +12 range | **500**: Save failed
+
+## Additional current interfaces
+
+These interfaces fill gaps in the earlier inventory. The corresponding handler and Swagger define request fields, response models, and side effects.
+
+### GET /api/v1/settings/github-discovery-token
+
+Read or save the GitHub discovery token.
+
+| Status | Response type |
+| --- | --- |
+| 200 | `githubDiscoveryTokenSetting` |
+| 401 | `ErrorResponse` |
+| 500 | `ErrorResponse` |
+
+### PUT /api/v1/settings/github-discovery-token
+
+Read or save the GitHub discovery token.
+
+| Parameter | Location | Type | Required |
+| --- | --- | --- | --- |
+| `request` | body | `githubDiscoveryTokenSetting` | true |
+
+| Status | Response type |
+| --- | --- |
+| 200 | `githubDiscoveryTokenSetting` |
+| 400 | `ErrorResponse` |
+| 401 | `ErrorResponse` |
+| 500 | `ErrorResponse` |
+### GET /api/v1/settings/plugin-order
+
+Read or save home plugin ordering.
+
+| Status | Response type |
+| --- | --- |
+| 200 | `pluginOrderSetting` |
+
+### PUT /api/v1/settings/plugin-order
+
+Read or save home plugin ordering.
+
+| Parameter | Location | Type | Required |
+| --- | --- | --- | --- |
+| `request` | body | `pluginOrderSetting` | true |
+
+| Status | Response type |
+| --- | --- |
+| 200 | `pluginOrderSetting` |
+| 400 | `ErrorResponse` |
+| 500 | `ErrorResponse` |
+### GET /api/v1/settings/proxy-private-allowlist
+
+Read or save the private-address proxy allowlist.
+
+| Status | Response type |
+| --- | --- |
+| 200 | `proxyAllowlistSettingRequest` |
+
+### PUT /api/v1/settings/proxy-private-allowlist
+
+Read or save the private-address proxy allowlist.
+
+| Parameter | Location | Type | Required |
+| --- | --- | --- | --- |
+| `request` | body | `proxyAllowlistSettingRequest` | true |
+
+| Status | Response type |
+| --- | --- |
+| 200 | `proxyAllowlistSettingRequest` |
+| 400 | `object` |
+| 500 | `object` |
+### GET /api/v1/settings/scan-auto-fingerprint
+
+Read or save automatic fingerprint computation.
+
+| Status | Response type |
+| --- | --- |
+| 200 | `object` |
+
+### PUT /api/v1/settings/scan-auto-fingerprint
+
+Read or save automatic fingerprint computation.
+
+| Parameter | Location | Type | Required |
+| --- | --- | --- | --- |
+| `request` | body | `scanAutoFingerprintRequest` | true |
+
+| Status | Response type |
+| --- | --- |
+| 200 | `object` |
+| 400 | `object` |
+| 500 | `object` |
+### GET /api/v1/settings/tag-sync-to-file
+
+Read or save tag synchronization to media files.
+
+| Status | Response type |
+| --- | --- |
+| 200 | `object` |
+
+### PUT /api/v1/settings/tag-sync-to-file
+
+Read or save tag synchronization to media files.
+
+| Parameter | Location | Type | Required |
+| --- | --- | --- | --- |
+| `request` | body | `object` | true |
+
+| Status | Response type |
+| --- | --- |
+| 200 | `object` |
+| 400 | `object` |
+| 500 | `object` |
+### GET /api/v1/settings/theme-catalog-url
+
+Read or save the theme catalog URL.
+
+| Status | Response type |
+| --- | --- |
+| 200 | `object` |
+
+### PUT /api/v1/settings/theme-catalog-url
+
+Read or save the theme catalog URL.
+
+| Parameter | Location | Type | Required |
+| --- | --- | --- | --- |
+| `request` | body | `object` | true |
+
+| Status | Response type |
+| --- | --- |
+| 200 | `object` |
+| 400 | `object` |
+### GET /api/v1/settings/volume-normalize
+
+Read or save volume normalization.
+
+| Status | Response type |
+| --- | --- |
+| 200 | `volumeNormalizeRequest` |
+
+### PUT /api/v1/settings/volume-normalize
+
+Read or save volume normalization.
+
+| Parameter | Location | Type | Required |
+| --- | --- | --- | --- |
+| `request` | body | `volumeNormalizeRequest` | true |
+
+| Status | Response type |
+| --- | --- |
+| 200 | `volumeNormalizeRequest` |
+| 400 | `object` |
+| 500 | `object` |

@@ -552,7 +552,7 @@ const i = setInterval(() => songloft.log.info("heartbeat"), 60000);
 clearInterval(i);
 ```
 
-**注意：** 定时器回调在独立的后台 goroutine 中执行（每 500ms 检查一次到期定时器），使用 TryLock 机制确保**不阻塞 HTTP 请求处理**。当 HTTP 请求正在处理时，定时器自动让步等待下一轮。`setInterval` 的最小间隔被限制为 10ms。
+**注意：** 后台 goroutine 每 500ms 尝试用 TryLock 取得 VM 锁，处理到期定时器；锁忙时跳过这一轮。回调与 HTTP 中的 JS 共用同一 VM，长时间同步计算仍会占锁。`setInterval` 的最小间隔被限制为 10ms。
 
 ### songloft.storage — 持久化存储
 
@@ -1463,7 +1463,7 @@ Release tag 不必与清单版本相同，例如 `v0.17` 可配合 `version: "0.
 ### 性能建议
 
 1. **避免长时间阻塞** — `onHTTPRequest` 应快速返回
-2. **合理使用定时器** — 定时器回调在独立线程中执行，不阻塞 HTTP 请求。但回调中的 `fetch` 等网络操作仍会占用 VM 锁，建议避免在单次回调中执行多个串行网络请求
+2. **合理使用定时器** — 回调与 HTTP JS 串行访问 VM，避免长时间同步计算；`fetch` 的 HTTP 工作在 Go goroutine 中异步执行，Promise 恢复仍需事件循环推进
 3. **缓存计算结果** — 使用 `songloft.storage` 缓存频繁访问的数据
 4. **控制响应体大小** — 避免返回过大的 JSON 响应
 5. **定时器间隔** — 建议 `setInterval` 间隔不低于 1 秒；系统每 500ms 检查一次到期定时器

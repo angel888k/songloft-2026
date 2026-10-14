@@ -289,3 +289,67 @@
 | `songs_skipped` | 跳过的歌曲数 |
 
 - **400**: 格式错误/缺少文件/文件无效 | **500**: 导入失败
+
+## 当前源码补充接口
+
+以下接口补齐旧版列表遗漏。请求字段、响应模型与副作用以对应 handler 和 Swagger 为准。
+
+### PUT /api/v1/playlists/{id}/songs/move
+
+移动歌单内歌曲位置。
+
+| 参数 | 位置 | 类型 | 必填 |
+| --- | --- | --- | --- |
+| `id` | path | `integer` | true |
+| `request` | body | `object` | true |
+
+| 状态 | 响应类型 |
+| --- | --- |
+| 200 | `object` |
+| 400 | `object` |
+| 403 | `object` |
+| 500 | `object` |
+### POST /api/v1/playlists/{id}/songs/sort
+
+服务端排序歌单内歌曲。
+
+| 参数 | 位置 | 类型 | 必填 |
+| --- | --- | --- | --- |
+| `id` | path | `integer` | true |
+| `request` | body | `object` | true |
+
+| 状态 | 响应类型 |
+| --- | --- |
+| 200 | `object` |
+| 400 | `object` |
+| 403 | `object` |
+| 500 | `object` |
+### PUT /api/v1/playlists/{id}/sort
+
+更新歌单视图排序偏好。
+
+| 参数 | 位置 | 类型 | 必填 |
+| --- | --- | --- | --- |
+| `id` | path | `integer` | true |
+| `request` | body | `object` | true |
+
+| 状态 | 响应类型 |
+| --- | --- |
+| 200 | `object` |
+| 400 | `object` |
+| 500 | `object` |
+### PUT /api/v1/playlists/{id}/visibility
+
+设置歌单可见性。
+
+| 参数 | 位置 | 类型 | 必填 |
+| --- | --- | --- | --- |
+| `id` | path | `integer` | true |
+| `request` | body | `SetPlaylistVisibilityRequest` | true |
+
+| 状态 | 响应类型 |
+| --- | --- |
+| 200 | `Playlist` |
+| 400 | `object` |
+| 404 | `object` |
+| 500 | `object` |

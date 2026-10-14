@@ -689,3 +689,28 @@ Flutter/Lynx 商店通常由客户端渐进拉取清单；以下刷新端点保�
 ---
 
 **章节来源：** `internal/handlers/jsplugin.go` / `internal/handlers/jsplugin_registry.go` / `internal/jsplugin/routes.go` / `internal/app/routers.go`
+
+## 当前源码补充接口
+
+以下接口补齐旧版列表遗漏。请求字段、响应模型与副作用以对应 handler 和 Swagger 为准。
+
+### GET /api/v1/jsplugin-assets/web-core/{path}
+
+Web-core 静态资源。
+
+| 参数 | 位置 | 类型 | 必填 |
+| --- | --- | --- | --- |
+| `*` | path | `string` | true |
+
+| 状态 | 响应类型 |
+| --- | --- |
+| 200 | `object` |
+| 404 | `object` |
+### POST /api/v1/jsplugins/storage/cleanup
+
+清理孤儿持久化存储。
+
+| 状态 | 响应类型 |
+| --- | --- |
+| 200 | `object` |
+| 500 | `ErrorResponse` |

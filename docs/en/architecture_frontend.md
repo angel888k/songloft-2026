@@ -8,7 +8,7 @@ The Songloft frontend is a Flutter-based cross-platform music player supporting 
 
 ## Tech Stack
 
-- **Framework**: Flutter 3.29+ / Dart 3.7+
+- **Framework**: Flutter 3.41+ / Dart 3.7+
 - **State management**: flutter_riverpod ^3.1.0 (hand-written Providers, no code generation)
 - **Routing**: go_router ^17.1.0 (declarative routing + ShellRoute)
 - **HTTP client**: dio ^5.7.0
@@ -593,5 +593,5 @@ make build-go-desktop-macos-arm64  # → clients/player/macos/Runner/songloft-se
 ```
 
 Prebuilt installer downloads:
-- Standard edition (requires connecting to a server): [https://github.com/songloft-org/clients/player/releases](https://github.com/songloft-org/clients/player/releases)
+- Standard edition (requires connecting to a server): [https://github.com/songloft-org/songloft-player/releases](https://github.com/songloft-org/songloft-player/releases)
 - Bundle edition (backend embedded): [https://github.com/songloft-org/songloft/releases](https://github.com/songloft-org/songloft/releases) (`songloft-bundled-*` files)

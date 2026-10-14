@@ -49,16 +49,16 @@ A theme pack is a JSON file (with `.songloft-theme` extension) that declares col
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `schemaVersion` | int | ✅ | Must be `1` (current version) |
+| `schemaVersion` | int | ✅ | Use `1` for current packs; backend validation requires at least 1 |
 | `id` | string | ✅ | Globally unique ID, format: `author.theme-name`, e.g. `songloft.neon-night` |
 | `name` | string | ✅ | Display name |
-| `version` | string | ✅ | Semantic version, e.g. `1.0.0` |
+| `version` | string | No | Recommended for publication, e.g. `1.0.0`; backend validation does not require it or validate its format |
 | `author` | string | No | Author name |
 | `description` | string | No | Short description (max ~50 characters recommended) |
 
 ### Colors (light / dark)
 
-`light` and `dark` define color schemes for each mode. At least one must be provided.
+`light` and `dark` define light and dark schemes. Providing both is recommended. The backend permits both to be omitted; any provided scheme must contain a valid `seedColor`.
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
@@ -94,6 +94,8 @@ Light mode typically uses a more saturated, deeper seed color; dark mode uses a 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `navigationStyle` | string | No | Navigation bar appearance. `"standard"` (default) = standard navigation indicator; `"capsule"` = capsule-shaped glass navigation bar (designed for use with the Liquid Glass theme) |
+
+Backend validation is in `internal/models/theme_pack.go`. `playerGradient` validates each color without restricting array length; use at least two colors to form a gradient. Importing the same `id` again updates the existing pack.
 
 ## Creation Workflow
 

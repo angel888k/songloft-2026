@@ -486,3 +486,16 @@
 ---
 
 **章节来源：** `internal/handlers/scan.go` / `internal/app/routers.go` / `internal/services/scan_progress.go` / `internal/services/fingerprint.go`
+
+## 当前源码补充接口
+
+以下接口补齐旧版列表遗漏。请求字段、响应模型与副作用以对应 handler 和 Swagger 为准。
+
+### GET /api/v1/scan/fingerprints/failed
+
+获取指纹计算失败的歌曲列表。
+
+| 状态 | 响应类型 |
+| --- | --- |
+| 200 | `object` |
+| 500 | `object` |

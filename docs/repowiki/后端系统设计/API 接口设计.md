@@ -92,7 +92,7 @@ chi.Router (根)
 
 ### 3.2 中间件栈
 
-全局中间件在 `setupBaseRouter()` 中注册，按执行顺序：Compress(Gzip) -> RequestLogger(slog) -> Tracely(panic 上报) -> Recoverer(500) -> RequestID -> CORS。认证中间件 `AuthMiddleware` 不是全局中间件，而是在各路由组内部按需添加。
+全局中间件在 `setupBaseRouter()` 中注册，按执行顺序：Compress(Gzip) -> RequestLogger(slog) -> Tracely(panic 上报) -> Recoverer(500) -> RequestID -> CORS -> CORP。认证中间件 `AuthMiddleware` 不是全局中间件，而是在各路由组内部按需添加。
 
 ### 3.3 路由分组策略
 
@@ -147,7 +147,7 @@ query parameter 回退主要服务于无法自定义 Header 的场景：`<img>` 
 
 ### 5.2 Handler 清单
 
-项目共 14 个 Handler，均位于 `internal/handlers/`：
+主要 Handler 位于 `internal/handlers/`：
 
 - **业务核心**: `AuthHandler`(AuthService)、`SongHandler`(SongService + CacheService + 4 依赖)、`PlaylistHandler`(PlaylistService)、`BackupHandler`(BackupService)
 - **配置管理**: `ConfigHandler`(ConfigService)、`ScanHandler`(SongService + Scanner + ConfigService)、`HLSHandler`(SongService + ConfigService)、`CacheHandler`(CacheService + ConfigService)、`LogHandler`(ConfigService + LevelVar)
@@ -239,171 +239,239 @@ query parameter 回退主要服务于无法自定义 Header 的场景：`<img>` 
 
 ## 8. 完整路由清单
 
-**图表来源**: `internal/app/routers.go`、`internal/handlers/jsplugin.go`、`internal/jsplugin/routes.go`
+下表来自当前 `docs/swagger.json`，已对照路由注册；不单列 HEAD。动态路径由已安装插件决定，不能把 OpenAPI 占位当成固定业务接口。
 
-以下路由清单涵盖 `routers.go`、`JSPluginHandler.RegisterRoutes`、`jsplugin/routes.go` 中注册的全部端点。除特别标注外，均需 Bearer 认证。
+### 歌曲
 
-### 8.1 认证 (AuthHandler)
+| 路径 | 方法 |
+| --- | --- |
+| `/api/v1/songs` | GET |
+| `/api/v1/songs/batch-delete` | POST |
+| `/api/v1/songs/clean` | POST |
+| `/api/v1/songs/duplicates` | GET |
+| `/api/v1/songs/facets` | GET |
+| `/api/v1/songs/folders` | GET |
+| `/api/v1/songs/ids` | GET |
+| `/api/v1/songs/names` | GET |
+| `/api/v1/songs/organize` | POST |
+| `/api/v1/songs/organize/preview` | POST |
+| `/api/v1/songs/radio` | POST |
+| `/api/v1/songs/random` | GET |
+| `/api/v1/songs/refresh-metadata` | POST |
+| `/api/v1/songs/refresh-metadata/cancel` | POST |
+| `/api/v1/songs/refresh-metadata/progress` | GET |
+| `/api/v1/songs/remote` | POST |
+| `/api/v1/songs/stats` | GET |
+| `/api/v1/songs/{id}` | GET, PUT, DELETE |
+| `/api/v1/songs/{id}/activate` | POST |
+| `/api/v1/songs/{id}/artists` | GET, PUT |
+| `/api/v1/songs/{id}/audio-tracks` | GET |
+| `/api/v1/songs/{id}/cover` | GET |
+| `/api/v1/songs/{id}/hls/playlist` | GET |
+| `/api/v1/songs/{id}/hls/segment` | GET |
+| `/api/v1/songs/{id}/lyric` | GET |
+| `/api/v1/songs/{id}/lyrics` | PUT |
+| `/api/v1/songs/{id}/play` | GET |
+| `/api/v1/songs/{id}/play.m3u8` | GET |
+| `/api/v1/songs/{id}/played` | POST |
+| `/api/v1/songs/{id}/song-tags` | GET, PUT |
+| `/api/v1/songs/{id}/tags` | PUT |
+| `/api/v1/songs/{id}/tracks` | GET |
+| `/api/v1/songs/{id}/video-hls/playlist.m3u8` | GET |
+| `/api/v1/songs/{id}/video-hls/{path}` | GET |
 
-| 方法 | 路径 | 认证 | 说明 |
-|------|------|------|------|
-| POST | `/auth/login` | 无 | 用户登录 |
-| POST | `/auth/refresh` | 无 | 刷新 token |
-| POST | `/auth/logout` | Bearer | 登出 |
-| GET | `/auth/tokens` | Bearer | 列出所有 token |
-| GET | `/auth/tokens/{token_id}` | Bearer | token 详情 |
-| DELETE | `/auth/tokens/{token_id}` | Bearer | 撤销 token |
+### 歌单
 
-### 8.2 歌曲 (SongHandler + HLSHandler)
+| 路径 | 方法 |
+| --- | --- |
+| `/api/v1/playlists` | GET, POST |
+| `/api/v1/playlists/batch-delete` | POST |
+| `/api/v1/playlists/export` | GET |
+| `/api/v1/playlists/import` | POST |
+| `/api/v1/playlists/reorder` | PUT |
+| `/api/v1/playlists/{id}` | GET, PUT, DELETE |
+| `/api/v1/playlists/{id}/cover` | GET, POST |
+| `/api/v1/playlists/{id}/pin` | PUT |
+| `/api/v1/playlists/{id}/song-ids` | GET |
+| `/api/v1/playlists/{id}/songs` | GET, POST |
+| `/api/v1/playlists/{id}/songs/move` | PUT |
+| `/api/v1/playlists/{id}/songs/reorder` | PUT |
+| `/api/v1/playlists/{id}/songs/sort` | POST |
+| `/api/v1/playlists/{id}/songs/{songId}` | DELETE |
+| `/api/v1/playlists/{id}/sort` | PUT |
+| `/api/v1/playlists/{id}/touch` | POST |
+| `/api/v1/playlists/{id}/visibility` | PUT |
 
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| GET | `/songs` | 歌曲列表（分页+过滤） |
-| GET | `/songs/ids` | 歌曲 ID 列表 |
-| POST | `/songs/remote` | 添加远程歌曲 |
-| POST | `/songs/radio` | 添加电台 |
-| POST | `/songs/clean` | 清理无效歌曲 |
-| POST | `/songs/batch-delete` | 批量删除 |
-| POST | `/songs/organize` | 整理歌曲文件 |
-| POST | `/songs/organize/preview` | 预览批量整理（dry-run） |
-| GET | `/songs/duplicates` | 重复歌曲检测 |
-| GET | `/songs/facets` | 标签分类聚合 |
-| POST | `/songs/refresh-metadata` | 启动远程元数据刷新 |
-| GET | `/songs/refresh-metadata/progress` | 元数据刷新进度 |
-| POST | `/songs/refresh-metadata/cancel` | 取消元数据刷新 |
-| GET | `/songs/{id}` | 获取歌曲详情 |
-| PUT | `/songs/{id}` | 更新歌曲信息 |
-| DELETE | `/songs/{id}` | 删除歌曲 |
-| PUT | `/songs/{id}/lyrics` | 更新歌词 |
-| PUT | `/songs/{id}/tags` | 写入音频 tag |
-| POST | `/songs/{id}/activate` | 激活歌曲 |
-| POST | `/songs/{id}/played` | 播放事件通知（广播给插件） |
-| GET/HEAD | `/songs/{id}/play` | 播放音频流（二进制） |
-| GET/HEAD | `/songs/{id}/play.m3u8` | HLS 电台别名（同 handler） |
-| GET | `/songs/{id}/cover` | 歌曲封面 |
-| GET | `/songs/{id}/lyric` | 歌曲歌词 |
-| GET/HEAD | `/songs/{id}/hls/playlist` | HLS 播放列表代理 |
-| GET/HEAD | `/songs/{id}/hls/segment` | HLS 切片代理 |
+### 播放历史
 
-### 8.3 歌单 (PlaylistHandler + BackupHandler)
+| 路径 | 方法 |
+| --- | --- |
+| `/api/v1/play-history` | GET, DELETE |
+| `/api/v1/play-history/entry` | DELETE |
 
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| GET | `/playlists/export` | 导出歌单 |
-| POST | `/playlists/import` | 导入歌单 |
-| GET | `/playlists` | 歌单列表 |
-| POST | `/playlists` | 创建歌单 |
-| PUT | `/playlists/reorder` | 歌单排序 |
-| GET | `/playlists/{id}` | 歌单详情 |
-| PUT | `/playlists/{id}` | 更新歌单 |
-| DELETE | `/playlists/{id}` | 删除歌单 |
-| POST | `/playlists/batch-delete` | 批量删除歌单 |
-| GET | `/playlists/{id}/songs` | 歌单内歌曲列表 |
-| POST | `/playlists/{id}/songs` | 添加歌曲到歌单 |
-| PUT | `/playlists/{id}/songs/reorder` | 歌单歌曲排序 |
-| DELETE | `/playlists/{id}/songs/{songId}` | 移除歌单歌曲 |
-| POST | `/playlists/{id}/touch` | 更新歌单访问时间 |
-| POST | `/playlists/{id}/cover` | 上传歌单封面 |
-| GET | `/playlists/{id}/cover` | 获取歌单封面 |
+### 认证
 
-### 8.4 配置与设置
+| 路径 | 方法 |
+| --- | --- |
+| `/api/v1/auth/login` | POST |
+| `/api/v1/auth/logout` | POST |
+| `/api/v1/auth/refresh` | POST |
+| `/api/v1/auth/tokens` | GET |
+| `/api/v1/auth/tokens/{token_id}` | DELETE |
 
-| 方法 | 路径 | Handler | 说明 |
-|------|------|---------|------|
-| GET/PUT | `/settings/remote-title-source` | SongHandler | 网络歌曲标题来源 |
-| GET/PUT | `/settings/hls-proxy` | HLSHandler | HLS 代理开关 |
-| GET/PUT | `/settings/music-path` | ScanHandler | 音乐库路径 |
-| GET/PUT | `/settings/scan-playlist-mode` | ScanHandler | 歌单归并模式 |
-| GET/PUT | `/settings/scan-auto-create-playlists` | ScanHandler | 自动创建歌单 |
-| GET/PUT | `/settings/scan-title-source` | ScanHandler | 标题来源 |
-| GET/PUT | `/settings/auto-scan` | ScanHandler | 自动扫描 |
-| GET/PUT | `/settings/log-level` | LogHandler | 日志等级 |
-| GET/PUT | `/settings/plugin-registries` | JSPluginHandler | 插件注册表 |
-| GET/PUT | `/settings/http-proxy` | JSPluginHandler | HTTP 代理 |
-| GET/PUT | `/settings/plugin-keep-alive` | JSPluginHandler | 插件常驻白名单 |
-| GET/PUT | `/settings/plugin-auto-update` | JSPluginHandler | 插件自动更新 |
-| GET/PUT | `/settings/github-proxy` | UpgradeHandler | GitHub 更新代理 |
-| GET/PUT | `/settings/tab-config` | ConfigHandler | Tab 页配置 |
-| GET/PUT | `/settings/library-browse` | ConfigHandler | 曲库浏览视图 |
-| GET/PUT | `/settings/user-preferences` | ConfigHandler | 用户偏好设置 |
-| GET/PUT | `/settings/equalizer` | ConfigHandler | 均衡器 |
-| GET | `/configs` | ConfigHandler | 配置列表（通用 KV） |
-| POST | `/configs` | ConfigHandler | 创建配置 |
-| GET | `/configs/{key}` | ConfigHandler | 获取配置 |
-| PUT | `/configs/{key}` | ConfigHandler | 更新配置 |
-| DELETE | `/configs/{key}` | ConfigHandler | 删除配置 |
+### 通用配置
 
-### 8.5 扫描 (ScanHandler)
+| 路径 | 方法 |
+| --- | --- |
+| `/api/v1/configs` | GET, POST |
+| `/api/v1/configs/{key}` | GET, PUT, DELETE |
 
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| POST | `/scan` | 扫描并导入 |
-| GET | `/scan/progress` | 扫描进度 |
-| POST | `/scan/cancel` | 取消扫描 |
-| GET | `/scan/directories` | 目录列表 |
-| GET | `/scan/dir-names` | 目录名列表 |
-| GET | `/scan/fingerprints/status` | 指纹状态 |
-| POST | `/scan/fingerprints` | 启动指纹计算 |
-| GET | `/scan/fingerprints/progress` | 指纹计算进度 |
-| POST | `/scan/fingerprints/cancel` | 中断指纹计算 |
+### 业务设置
 
-### 8.6 缓存 (CacheHandler)
+| 路径 | 方法 |
+| --- | --- |
+| `/api/v1/settings/auto-scan` | GET, PUT |
+| `/api/v1/settings/equalizer` | GET, PUT |
+| `/api/v1/settings/github-discovery-token` | GET, PUT |
+| `/api/v1/settings/github-proxy` | GET, PUT |
+| `/api/v1/settings/hls-proxy` | GET, PUT |
+| `/api/v1/settings/http-proxy` | GET, PUT |
+| `/api/v1/settings/library-browse` | GET, PUT |
+| `/api/v1/settings/log-level` | GET, PUT |
+| `/api/v1/settings/music-path` | GET, PUT |
+| `/api/v1/settings/plugin-auto-update` | GET, PUT |
+| `/api/v1/settings/plugin-keep-alive` | GET, PUT |
+| `/api/v1/settings/plugin-order` | GET, PUT |
+| `/api/v1/settings/plugin-registries` | GET, PUT |
+| `/api/v1/settings/proxy-private-allowlist` | GET, PUT |
+| `/api/v1/settings/remote-title-source` | GET, PUT |
+| `/api/v1/settings/scan-auto-create-playlists` | GET, PUT |
+| `/api/v1/settings/scan-auto-fingerprint` | GET, PUT |
+| `/api/v1/settings/scan-playlist-mode` | GET, PUT |
+| `/api/v1/settings/scan-title-source` | GET, PUT |
+| `/api/v1/settings/tab-config` | GET, PUT |
+| `/api/v1/settings/tag-sync-to-file` | GET, PUT |
+| `/api/v1/settings/theme-catalog-url` | GET, PUT |
+| `/api/v1/settings/user-preferences` | GET, PUT |
+| `/api/v1/settings/volume-normalize` | GET, PUT |
 
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| GET | `/cache-manage/stats` | 缓存统计 |
-| POST | `/cache-manage/clean` | 清理缓存 |
-| GET | `/cache-manage/config` | 缓存配置 |
-| PUT | `/cache-manage/config` | 更新缓存配置 |
-| POST | `/cache-manage/validate-dir` | 验证缓存目录 |
+### 扫描与指纹
 
-### 8.7 升级 (UpgradeHandler)
+| 路径 | 方法 |
+| --- | --- |
+| `/api/v1/scan` | POST |
+| `/api/v1/scan/cancel` | POST |
+| `/api/v1/scan/dir-names` | GET |
+| `/api/v1/scan/directories` | GET |
+| `/api/v1/scan/fingerprints` | POST |
+| `/api/v1/scan/fingerprints/cancel` | POST |
+| `/api/v1/scan/fingerprints/failed` | GET |
+| `/api/v1/scan/fingerprints/progress` | GET |
+| `/api/v1/scan/fingerprints/status` | GET |
+| `/api/v1/scan/progress` | GET |
 
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| GET | `/upgrade/versions` | 版本列表 |
-| GET | `/upgrade/check` | 检查更新（仅 Docker） |
-| POST | `/upgrade/start` | 开始升级 |
-| POST | `/upgrade/reset` | 重置到底包 |
-| GET | `/upgrade/progress` | 升级进度 |
+### 缓存
 
-### 8.8 JS 插件管理 (JSPluginHandler)
+| 路径 | 方法 |
+| --- | --- |
+| `/api/v1/cache-manage/clean` | POST |
+| `/api/v1/cache-manage/config` | GET, PUT |
+| `/api/v1/cache-manage/stats` | GET |
+| `/api/v1/cache-manage/validate-dir` | POST |
 
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| GET | `/jsplugins` | 插件列表 |
-| POST | `/jsplugins/upload` | 上传插件 |
-| POST | `/jsplugins/update-all` | 批量更新 |
-| POST | `/jsplugins/storage/cleanup` | 清理孤儿持久化存储 |
-| POST | `/jsplugins/registry/refresh` | 刷新注册表 |
-| POST | `/jsplugins/registry/install` | 从注册表安装 |
-| GET | `/jsplugins/{id}` | 插件详情 |
-| PUT | `/jsplugins/{id}` | 更新插件 |
-| DELETE | `/jsplugins/{id}` | 删除插件 |
-| POST | `/jsplugins/{id}/enable` | 启用插件 |
-| POST | `/jsplugins/{id}/disable` | 禁用插件 |
-| GET | `/jsplugins/{id}/check-update` | 检查插件更新 |
-| POST | `/jsplugins/{id}/update` | 下载更新 |
-| GET | `/plugins/health` | 音源健康度 |
+### 插件管理
 
-### 8.9 JS 插件运行时 (jsplugin.Manager)
+| 路径 | 方法 |
+| --- | --- |
+| `/api/v1/jsplugins` | GET |
+| `/api/v1/jsplugins/registry/install` | POST |
+| `/api/v1/jsplugins/registry/refresh` | POST |
+| `/api/v1/jsplugins/storage/cleanup` | POST |
+| `/api/v1/jsplugins/update-all` | POST |
+| `/api/v1/jsplugins/upload` | POST |
+| `/api/v1/jsplugins/{id}` | GET, PUT, DELETE |
+| `/api/v1/jsplugins/{id}/check-update` | GET |
+| `/api/v1/jsplugins/{id}/disable` | POST |
+| `/api/v1/jsplugins/{id}/enable` | POST |
+| `/api/v1/jsplugins/{id}/update` | POST |
 
-| 方法 | 路径 | 认证 | 说明 |
-|------|------|------|------|
-| GET | `/jsplugin/{entryPath}[/]` | 无 | 插件入口 HTML |
-| GET | `/jsplugin/{entryPath}/static[/*]` | 无 | 插件静态资源 |
-| GET | `/jsplugin-assets/*` | 无 | 公共 CSS/JS/字体 |
-| GET/HEAD | `/jsplugin/{entryPath}/files/*` | Bearer | 插件文件服务 |
-| ANY | `/jsplugin/{entryPath}/*` | Bearer* | API catch-all 转发 |
+### 插件运行时
 
-*注: 插件 manifest 中 `publicPaths` 声明的路径通过 `PublicPathChecker` 豁免认证。
+| 路径 | 方法 |
+| --- | --- |
+| `/api/v1/jsplugin/{entryPath}` | GET |
+| `/api/v1/jsplugin/{entryPath}/files/{path}` | GET, HEAD |
+| `/api/v1/jsplugin/{entryPath}/static` | GET |
+| `/api/v1/jsplugin/{entryPath}/static/{path}` | GET |
+| `/api/v1/jsplugin/{entryPath}/{path}` | GET, PUT, POST, DELETE |
 
-### 8.10 其他
+### 插件公共资源
 
-| 方法 | 路径 | 认证 | 说明 |
-|------|------|------|------|
-| GET | `/version` | 无 | 版本信息 |
-| GET | `/health` | 无 | 健康检查 |
-| GET | `/proxy` | Bearer | 外部资源 CORS 代理 |
+| 路径 | 方法 |
+| --- | --- |
+| `/api/v1/jsplugin-assets/web-core/{path}` | GET |
+| `/api/v1/jsplugin-assets/{path}` | GET |
 
-> 以上路径均省略 `/api/v1` 前缀。完整 URL 为 `http://<host>:58091/api/v1/<path>`。
+### 插件健康度
+
+| 路径 | 方法 |
+| --- | --- |
+| `/api/v1/plugins/health` | GET |
+
+### 自定义标签
+
+| 路径 | 方法 |
+| --- | --- |
+| `/api/v1/song-tags` | GET, POST |
+| `/api/v1/song-tags/{id}` | GET, PUT, DELETE |
+| `/api/v1/song-tags/{id}/bind` | POST |
+| `/api/v1/song-tags/{id}/song-ids` | GET |
+| `/api/v1/song-tags/{id}/songs` | GET |
+| `/api/v1/song-tags/{id}/unbind` | POST |
+
+### 主题包
+
+| 路径 | 方法 |
+| --- | --- |
+| `/api/v1/theme-packs` | GET, POST |
+| `/api/v1/theme-packs/active` | GET, PUT, DELETE |
+| `/api/v1/theme-packs/catalog/install` | POST |
+| `/api/v1/theme-packs/catalog/refresh` | POST |
+| `/api/v1/theme-packs/{themeID}` | GET, DELETE |
+
+### 后端升级
+
+| 路径 | 方法 |
+| --- | --- |
+| `/api/v1/upgrade/check` | GET |
+| `/api/v1/upgrade/progress` | GET |
+| `/api/v1/upgrade/reset` | POST |
+| `/api/v1/upgrade/start` | POST |
+| `/api/v1/upgrade/upload` | POST |
+| `/api/v1/upgrade/upload/confirm` | POST |
+| `/api/v1/upgrade/versions` | GET |
+
+### 资源与转码代理
+
+| 路径 | 方法 |
+| --- | --- |
+| `/api/v1/proxy` | GET |
+| `/api/v1/proxy/transcode` | GET |
+
+### 日志导出
+
+| 路径 | 方法 |
+| --- | --- |
+| `/api/v1/logs/export` | GET |
+
+### 健康检查
+
+| 路径 | 方法 |
+| --- | --- |
+| `/api/v1/health` | GET |
+
+### 版本
+
+| 路径 | 方法 |
+| --- | --- |
+| `/api/v1/version` | GET |

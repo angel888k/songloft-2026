@@ -16,7 +16,11 @@ A: **No, it is free, and it does not accept any sponsorship or donations.** Song
 
 A:
 - **Backend server**: Download the build for your system from [GitHub Releases](https://github.com/songloft-org/songloft/releases). Linux, macOS, and Windows are supported, with both binary and Docker image deployment options.
-- **Flutter client**: Download the prebuilt installers from [Flutter client Releases](https://github.com/songloft-org/clients/player/releases). Android, iOS, macOS, Windows, Linux, and Web are supported.
+- **Flutter client**: Download the prebuilt installers from [Flutter client Releases](https://github.com/songloft-org/songloft-player/releases). Android, iOS, macOS, Windows, Linux, and Web are supported.
+
+- **Electron desktop client**: [Songloft Desktop Releases](https://github.com/songloft-org/songloft-desktop/releases/latest), connecting to an existing server.
+- **TV client**: [Songloft TV Releases](https://github.com/songloft-org/songloft-tv/releases/latest), for Android 5.0+ large-screen devices.
+- **Lynx and Bundle**: see [client selection](clients.md) for downloads and platform limits.
 
 ### Q: Which operating systems and architectures are supported?
 
@@ -275,7 +279,7 @@ A: Some radio source sites use Referer / User-Agent hotlink protection, or are b
 
 ### Q: How do I scan the music library?
 
-A: After adding or modifying music files, you **must manually trigger a scan** for them to appear in the song library. In the client, go to **Settings → Scan Management** and click the scan button (note: it's a long bar-shaped button, not a dialog). Scanning runs asynchronously; you can check the status via the progress endpoint, and you can also cancel an in-progress scan.
+A: After adding or modifying music files, scan them before they appear in the library. You can scan manually or enable automatic scanning with an interval in **Settings → Scan Management**; automatic scanning is disabled by default. In the client, go to **Settings → Scan Management** and click the scan button (note: it's a long bar-shaped button, not a dialog). Scanning runs asynchronously; you can check the status via the progress endpoint, and you can also cancel an in-progress scan.
 
 ### Q: How does the Flutter client connect to the backend?
 
@@ -320,7 +324,7 @@ A:
 - **Docker deployment**: You can check for and perform upgrades online via **Upgrade Management** on the settings page
 - **Flutter client**: The settings page notifies you of new frontend versions, with a link to download from GitHub Releases
 
-The database migrates automatically — no manual action required. If something goes wrong after an upgrade, you can try deleting `data/songloft.db` and restarting (this will lose user data).
+The database migrates automatically at startup. Back up the data directory before upgrading. If an upgrade fails, keep the database and inspect migration or permission logs; restore a backup compatible with the selected version when needed. Deleting the database is not a routine upgrade or repair step.
 
 ### Q: How do I verify the integrity of downloaded files?
 
@@ -374,7 +378,7 @@ A: **No, it's not required.** Songloft uses a pure Go library (`hanxi/tag`) to e
 
 A:
 - **Backend development**: Go 1.26+
-- **Frontend development**: Flutter 3.29+ / Dart 3.7+
+- **Frontend development**: Flutter 3.41+ / Dart 3.7+
 - **Android builds**: You must first accept the SDK licenses with `sdkmanager --licenses`
 
 ---

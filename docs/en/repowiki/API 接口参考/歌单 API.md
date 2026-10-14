@@ -289,3 +289,67 @@ Restores playlists from a JSON backup file (multipart/form-data). Existing playl
 | `songs_skipped` | Number of skipped songs |
 
 - **400**: Format error / missing file / invalid file | **500**: Import failed
+
+## Additional current interfaces
+
+These interfaces fill gaps in the earlier inventory. The corresponding handler and Swagger define request fields, response models, and side effects.
+
+### PUT /api/v1/playlists/{id}/songs/move
+
+Move songs within a playlist.
+
+| Parameter | Location | Type | Required |
+| --- | --- | --- | --- |
+| `id` | path | `integer` | true |
+| `request` | body | `object` | true |
+
+| Status | Response type |
+| --- | --- |
+| 200 | `object` |
+| 400 | `object` |
+| 403 | `object` |
+| 500 | `object` |
+### POST /api/v1/playlists/{id}/songs/sort
+
+Sort playlist songs by a field.
+
+| Parameter | Location | Type | Required |
+| --- | --- | --- | --- |
+| `id` | path | `integer` | true |
+| `request` | body | `object` | true |
+
+| Status | Response type |
+| --- | --- |
+| 200 | `object` |
+| 400 | `object` |
+| 403 | `object` |
+| 500 | `object` |
+### PUT /api/v1/playlists/{id}/sort
+
+Read or save the playlist sort preference.
+
+| Parameter | Location | Type | Required |
+| --- | --- | --- | --- |
+| `id` | path | `integer` | true |
+| `request` | body | `object` | true |
+
+| Status | Response type |
+| --- | --- |
+| 200 | `object` |
+| 400 | `object` |
+| 500 | `object` |
+### PUT /api/v1/playlists/{id}/visibility
+
+Set playlist visibility.
+
+| Parameter | Location | Type | Required |
+| --- | --- | --- | --- |
+| `id` | path | `integer` | true |
+| `request` | body | `SetPlaylistVisibilityRequest` | true |
+
+| Status | Response type |
+| --- | --- |
+| 200 | `Playlist` |
+| 400 | `object` |
+| 404 | `object` |
+| 500 | `object` |

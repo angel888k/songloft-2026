@@ -1,16 +1,16 @@
 # 客户端选择
 
-Songloft 提供 Flutter 与 Lynx 两套播放器客户端；它们连接同一后端，发布包和能力范围分别维护。
+Songloft 提供 Flutter、Lynx、Electron 桌面与 TV 客户端，均连接同一后端；发布包和能力范围分别维护。
 
-| 项目            | Flutter                                  | Lynx（预览版）                       |
-| --------------- | ---------------------------------------- | ------------------------------------ |
-| 技术            | Flutter / Dart                           | ReactLynx / TypeScript               |
-| 平台            | Android、iOS、macOS、Windows、Linux、Web | Android、iOS、HarmonyOS、Web         |
-| Bundle 本地后端 | 支持移动端与桌面端                       | 未实现，所有平台需独立服务器         |
-| 桌面客户端      | 支持                                     | 未实现                               |
-| 客户端更新      | 以 Flutter 客户端指南为准                | 重新下载并安装，尚无客户端内检查更新 |
-| 核心功能        | 播放、曲库、歌单、歌词、插件、主题等     | 已有对应实现，仍需原生设备回归       |
-| 许可证          | Apache-2.0                               | Apache-2.0                           |
+| 项目 | Flutter | Lynx（预览版） | Songloft Desktop | Songloft TV |
+| --- | --- | --- | --- | --- |
+| 技术 | Flutter / Dart | ReactLynx / TypeScript | Electron | Kotlin / Jetpack Compose for TV |
+| 平台 | Android、iOS、macOS、Windows、Linux、Web | Android、iOS、HarmonyOS、Web | Windows、macOS、Linux | Android 5.0+ 电视 / 盒子及横屏大屏设备 |
+| Bundle 本地后端 | 支持移动端与桌面端 | 未实现，需独立服务器 | 未实现，需独立服务器 | 未实现，需独立服务器 |
+| 桌面客户端 | 支持 | 未实现 | 专用桌面客户端 | 无桌面版 |
+| 客户端更新 | 以 Flutter 客户端指南为准 | 重新下载并安装，尚无客户端内检查更新 | 以 Electron 仓库说明为准 | 设置页检查更新 |
+| 核心功能 | 播放、曲库、歌单、歌词、插件、主题等 | 已有对应实现，仍需原生设备回归 | 曲库、歌单、歌词、插件与桌面集成 | 遥控器导航、音乐 / MV、歌词、K 歌与扫码点歌 |
+| 许可证 | Apache-2.0 | Apache-2.0 | Apache-2.0 | Apache-2.0 |
 
 ## Flutter
 
@@ -39,14 +39,26 @@ Songloft 提供 Flutter 与 Lynx 两套播放器客户端；它们连接同一�
 
 Web standalone 显示服务器地址输入；embedded 使用同源服务器并隐藏该输入。两者都需要正确的 MIME 与隔离响应头；替换 Go 的 Flutter 内嵌资源并不能自动满足 Lynx 宿主契约。部署请参阅 [Web 指南](player-lynx/web-deployment.md)，子路径部署目前未验证。
 
+## Songloft Desktop（Electron 桌面客户端）
+
+[Songloft Desktop](https://github.com/songloft-org/songloft-desktop) 是 Songloft 官方 Electron 桌面客户端，面向 Windows、macOS 和 Linux。需连接 Songloft 服务端，不含 Bundle 本地后端。
+
+- [下载与安装包](https://github.com/songloft-org/songloft-desktop/releases/latest)：各平台安装方式以仓库说明和 Release 产物为准。
+- [项目说明与源码](https://github.com/songloft-org/songloft-desktop) · [问题反馈](https://github.com/songloft-org/songloft-desktop/issues)。
+
+## Songloft TV（TV / 大屏客户端）
+
+[Songloft TV](https://github.com/songloft-org/songloft-tv) 使用 Kotlin + Jetpack Compose for TV，支持 Android 5.0（API 21）及以上的电视、盒子及横屏大屏设备。需连接已有的 Songloft 服务端，不含 Bundle 本地后端。
+
+- [正式版 APK 下载](https://github.com/songloft-org/songloft-tv/releases/latest) · [开发版下载](https://github.com/songloft-org/songloft-tv/releases/tag/dev)。
+- [构建与安装说明](https://github.com/songloft-org/songloft-tv#构建) · [源码](https://github.com/songloft-org/songloft-tv) · [问题反馈](https://github.com/songloft-org/songloft-tv/issues)。
+- 支持遥控器 D-Pad 焦点导航与触屏、手机扫码配置服务器、音乐 / MV 播放、原唱 / 伴奏切换、同步与逐字歌词。
+- 提供 K 歌模式和手机扫码点歌、收藏歌曲 / 电台、播放缓存、后台播放及设置页更新检查。
+- 播放统计需服务端安装播放统计插件；未安装时自动隐藏对应页面。
+
+设备兼容性与安装要求以 TV 仓库说明为准；车载使用边界参阅该仓库的[声明与免责](https://github.com/songloft-org/songloft-tv#声明与免责)。
+
 ## 第三方客户端
-
-### Songloft Desktop（社区桌面客户端）
-
-[Songloft Desktop](https://github.com/edwinhuish/songloft-desktop) 是由 edwinhuish 独立维护的 Electron 桌面客户端，面向 Windows、macOS 和 Linux。使用时需连接已有的 Songloft 服务端。
-
-- [下载与安装包](https://github.com/edwinhuish/songloft-desktop/releases/latest)；各平台可用包与安装步骤以该项目说明为准。
-- [项目说明与源码](https://github.com/edwinhuish/songloft-desktop)；使用问题请向该项目反馈。
 
 更多社区客户端见[快速开始中的第三方客户端](quick-start.md#🌐-第三方客户端)。
 

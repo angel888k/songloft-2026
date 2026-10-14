@@ -1,16 +1,5 @@
 // 社区客户端的中英介绍与链接，供落地页卡片使用。
-// Songloft Desktop 图标来自其仓库 build/icons/128x128.png。
 export const THIRD_PARTY_CLIENTS = [
-  {
-    name: { zh: 'Songloft Desktop', en: 'Songloft Desktop' },
-    desc: {
-      zh: 'edwinhuish 独立维护的 Electron 桌面客户端，需连接 Songloft 服务端',
-      en: 'Electron desktop client maintained by edwinhuish; requires a Songloft server',
-    },
-    platforms: ['Windows', 'macOS', 'Linux'],
-    href: 'https://github.com/edwinhuish/songloft-desktop',
-    img: 'songloft-desktop.png',
-  },
   {
     name: { zh: '音乐方舟', en: 'MusicArk' },
     desc: { zh: 'HarmonyOS NEXT 多源媒体播放器，16 类媒体库一站聚合', en: 'Multi-source media player for HarmonyOS NEXT with 16 library types' },

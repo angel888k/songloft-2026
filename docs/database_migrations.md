@@ -217,7 +217,7 @@ cd internal/database/migrations
 goose sqlite3 ../../../data/songloft.db down
 ```
 
-线上不要回滚。项目规约是"加字段往前走、不删字段",真要重置 `rm -f data/songloft.db` 重新跑迁移更省事。
+生产部署使用前向迁移；恢复前核对数据库备份与程序版本。需要从空库验证迁移时使用临时数据库路径，不删除现有用户数据库。
 
 ## 文件清单速查
 

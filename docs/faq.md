@@ -18,6 +18,10 @@ A:
 - **后端服务器**：从 [GitHub Releases](https://github.com/songloft-org/songloft/releases) 下载适合您系统的版本，支持 Linux、macOS 和 Windows 平台，提供二进制文件和 Docker 镜像两种部署方式。
 - **Flutter 客户端**：从 [Flutter 客户端 Releases](https://github.com/songloft-org/songloft-player/releases) 下载预编译安装包，支持 Android、iOS、macOS、Windows、Linux 和 Web。
 
+- **Electron 桌面客户端**：[Songloft Desktop Releases](https://github.com/songloft-org/songloft-desktop/releases/latest)，连接已有服务器。
+- **TV 客户端**：[Songloft TV Releases](https://github.com/songloft-org/songloft-tv/releases/latest)，支持 Android 5.0+ 大屏设备。
+- **Lynx 与 Bundle**：平台边界和下载入口见[客户端选择](clients.md)。
+
 ### Q: 支持哪些操作系统和架构？
 
 A: 
@@ -275,7 +279,7 @@ A: 部分电台源站有 Referer / User-Agent 防盗链，或在 Web 嵌入模�
 
 ### Q: 如何扫描音乐库？
 
-A: 添加或修改音乐文件后，**必须手动触发扫描**才能在歌曲库中看到。在客户端的 **设置 → 扫描管理** 中点击扫描按钮（注意该按钮是长条形的，不是提示框）。扫描是异步执行的，可以通过进度接口查看状态，也可以取消正在进行的扫描。
+A: 添加或修改音乐文件后，需要扫描才能在歌曲库中看到。可手动触发，也可在 **设置 → 扫描管理** 启用自动扫描并设置间隔；默认未启用自动扫描。在客户端的 **设置 → 扫描管理** 中点击扫描按钮（注意该按钮是长条形的，不是提示框）。扫描是异步执行的，可以通过进度接口查看状态，也可以取消正在进行的扫描。
 
 ### Q: Flutter 客户端如何连接后端？
 
@@ -320,7 +324,7 @@ A:
 - **Docker 部署**：可通过设置页面的 **升级管理** 在线检查和执行升级
 - **Flutter 客户端**：设置页面会提示前端新版本，可跳转到 GitHub Releases 下载
 
-数据库会自动迁移，无需手动操作。如果升级后出现异常，可尝试删除 `data/songloft.db` 后重启（会丢失用户数据）。
+数据库会在启动时自动迁移。升级前备份数据目录；升级异常时保留数据库，查看日志定位迁移或权限问题，必要时恢复匹配版本的备份。删除数据库不是常规升级或修复步骤。
 
 ### Q: 如何验证下载文件的完整性？
 
@@ -374,7 +378,7 @@ A: **不是必须的**。Songloft 使用纯 Go 库（`hanxi/tag`）提取音频�
 
 A: 
 - **后端开发**：Go 1.26+
-- **前端开发**：Flutter 3.29+ / Dart 3.7+
+- **前端开发**：Flutter 3.41+ / Dart 3.7+
 - **Android 构建**：需要先接受 SDK 许可证 `sdkmanager --licenses`
 
 ---

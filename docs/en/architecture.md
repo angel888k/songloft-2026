@@ -2,13 +2,13 @@
 
 Songloft is a self-hosted local music server built with a decoupled frontend/backend architecture. It supports two run modes: **Server Mode** (deploying the Go backend standalone) and **Bundle Local Mode** (embedding the Go backend inside the Flutter client, with no need to deploy a separate server).
 
-Server Mode supports both Flutter and ReactLynx clients. Lynx is an Android/iOS/HarmonyOS/Web preview with no desktop or Bundle mode; the client architecture diagram below describes the default Flutter setup.
+Server Mode supports Flutter, ReactLynx, official Electron Desktop, and Android TV clients. Lynx is an Android/iOS/HarmonyOS/Web preview with no desktop or Bundle mode; the client architecture diagram below describes the default Flutter setup.
 
 ## Architecture Documentation Navigation
 
 - **[Backend Architecture](./architecture_backend.md)** - Detailed architecture of the Go backend API service
 - **[Frontend Architecture](./architecture_frontend.md)** - Detailed architecture of the Flutter cross-platform frontend
-- **[Choosing a Client](./clients.md)** - Flutter and Lynx platforms, capabilities, and downloads
+- **[Choosing a Client](./clients.md)** - Flutter, Lynx, Electron Desktop, and TV platforms, capabilities, and downloads
 - **[Lynx Client](./player-lynx/index.md)** - Installation, builds, testing, and independent releases
 - **[Color System](./color_system.md)** - Material 3 color system and theming conventions
 - **[Quick Start](./quick-start.md)** - Getting-started guide (generated in sync with README.md)
@@ -18,7 +18,7 @@ Server Mode supports both Flutter and ReactLynx clients. Lynx is an Android/iOS/
 ```
 ┌──────────────────────────────────────────────────────────────┐
 │  Flutter Cross-Platform Frontend                             │
-│  /songloft-player (standalone repo: github.com/songloft-org/songloft-player) │
+│  /clients/player (standalone repo: github.com/songloft-org/songloft-player) │
 │  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐       │
 │  │ Android  │ │   iOS    │ │  macOS   │ │ Windows  │       │
 │  └──────────┘ └──────────┘ └──────────┘ └──────────┘       │
@@ -64,7 +64,7 @@ Server Mode supports both Flutter and ReactLynx clients. Lynx is an Android/iOS/
 |------|------|------|
 | Go | 1.26+ | Backend language |
 | Chi | v5.2.4 | HTTP routing framework |
-| SQLite | modernc.org/sqlite v1.46.1 | Pure-Go database driver |
+| SQLite | modernc.org/sqlite v1.49.1 | Pure-Go database driver |
 | goose | v3 | SQL schema migrations (automatically applied with Up on startup) |
 | sqlc | - | Generates type-safe Go code from static SQL (CLI) |
 | squirrel | v1.5 | Dynamic SQL construction (variable-length WHERE/SET/ORDER) |
@@ -72,13 +72,13 @@ Server Mode supports both Flutter and ReactLynx clients. Lynx is an Android/iOS/
 | QuickJS | modernc.org/quickjs | JS runtime (JS plugin sandbox) |
 | hanxi/tag | - | Audio metadata read/write |
 | ffprobe | Optional | Audio technical parameters |
-| Tracely | v1.1.0 | Monitoring reporting (heartbeat, install/upgrade stats, panic capture) |
+| Tracely | v1.1.3 | Monitoring reporting (heartbeat, install/upgrade stats, panic capture) |
 
 ### Flutter Frontend
 
 | Technology | Version | Description |
 |------|------|------|
-| Flutter | 3.29+ | Cross-platform UI framework |
+| Flutter | 3.41+ | Cross-platform UI framework |
 | Dart | 3.7+ | Programming language |
 | Riverpod | ^3.1.0 | State management |
 | GoRouter | ^17.1.0 | Declarative routing |

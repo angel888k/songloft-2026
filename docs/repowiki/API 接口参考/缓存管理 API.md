@@ -233,7 +233,7 @@
 
 ### 跨设备文件搬移
 
-缓存下载使用 `moveFile` 替代裸 `os.Rename`，自动处理跨文件系统（如 `/tmp` 到独立挂载点）的 `EXDEV` 错误，回退为 copy + remove。
+缓存下载使用 `fileutil.MoveFile` 替代裸 `os.Rename`，自动处理跨文件系统（如 `/tmp` 到独立挂载点）的 `EXDEV` 错误，回退为 copy + remove。
 
 ---
 

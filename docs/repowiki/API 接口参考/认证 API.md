@@ -1,5 +1,7 @@
 # 认证 API
 
+本页覆盖当前注册的五个认证方法：登录、刷新、登出、列出令牌和撤销令牌。默认凭证来自启动配置，不由 dev / release 构建标签决定；已运行实例以启动参数或环境变量为准。
+
 本文档基于以下源文件编写：
 
 - [internal/handlers/auth.go](https://github.com/songloft-org/songloft/blob/main/internal/handlers/auth.go) -- 登录、登出、令牌刷新、令牌管理处理器

@@ -198,6 +198,13 @@ Songloft 提供三种版本，满足不同使用场景：
 
 Android 提供 release 签名 APK，iOS 提供需自行重签的 IPA，HarmonyOS 提供签名 HAP（设备范围由 profile 决定），Web 提供 standalone/embedded 两种压缩包。HarmonyOS 为实验性支持；Web 需 HTTPS 与 COOP/COEP 响应头，子路径部署未验证。详见[客户端选择](docs/clients.md)。
 
+### 🖥️ Songloft Desktop（Electron 客户端）
+
+[Songloft Desktop](https://github.com/songloft-org/songloft-desktop) 是 Songloft 官方 Electron 桌面客户端，面向 Windows、macOS 和 Linux。需连接 Songloft 服务端，不含 Bundle 本地后端。
+
+- [下载与安装包](https://github.com/songloft-org/songloft-desktop/releases/latest)：各平台安装方式以仓库说明和 Release 产物为准。
+- [项目说明与源码](https://github.com/songloft-org/songloft-desktop) · [问题反馈](https://github.com/songloft-org/songloft-desktop/issues)。
+
 ### 📺 TV / 车机客户端
 
 除 Flutter 客户端外，TV 端和车机端推荐使用专门的 **[songloft-tv](https://github.com/songloft-org/songloft-tv)** 客户端，专为 Android TV 及车载信息娱乐系统设计，支持遥控器和触屏操作。
@@ -221,7 +228,6 @@ Android 提供 release 签名 APK，iOS 提供需自行重签的 IPA，HarmonyOS
 
 | 客户端 | 平台 | 说明 |
 |--------|------|------|
-| [Songloft Desktop](https://github.com/edwinhuish/songloft-desktop) | Windows / macOS / Linux | edwinhuish 独立维护的 Electron 桌面客户端，需连接 Songloft 服务端 |
 | [音乐方舟](https://musicark.pro/) | HarmonyOS | HarmonyOS NEXT 多源媒体播放器，16 类媒体库一站聚合 |
 | [箭头音乐](https://www.amcfy.com/) | Android / iOS / HarmonyOS / Windows / macOS | 现代化多平台音乐播放器，兼容多种音乐服务器协议 |
 | [音流](https://music.aqzscn.cn/) | Android / iOS / macOS / Windows | 跨平台 NAS 音乐播放器，支持多种自托管音乐服务 |
@@ -620,4 +626,3 @@ Songloft 内置 JS 插件引擎，插件运行在 QuickJS 沙箱中，支持权�
 ## 📄 许可证
 
 本项目基于 [Apache-2.0 License](LICENSE) 开源。
-

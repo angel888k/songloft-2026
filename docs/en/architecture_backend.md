@@ -68,7 +68,7 @@ Holds the project's core business logic, organized by functional module:
 #### fileutil/ - File utilities
 
 - `cover_finder.go`: External cover lookup (`FindExternalCover`) and save (`SaveExternalCover`, content-hash deduplication)
-- `file_move.go`: Cross-partition file move (falls back to copy+delete when `os.Rename` fails)
+- `file_move.go`: Cross-partition file move (falls back to copy+delete only for cross-device errors)
 
 #### handlers/ - Request handlers
 
@@ -123,7 +123,7 @@ Holds the project's core business logic, organized by functional module:
 - `playlist_song_repository.go`: Playlist-song association repository (includes `ReplaceSong`, etc.)
 - `token_repository.go`: Authentication token repository
 - `jsplugin_repository.go`: JS plugin repository
-- `plugin_storage_repository.go`: JS plugin KV storage repository (backend store behind the `host.storage` bridge)
+- `plugin_storage_repository.go`: JS plugin KV storage repository (backend store behind the `songloft.persistentStorage` bridge)
 - `play_history_repository.go`: Play history repository
 - `song_tag_repository.go`: Custom tag repository
 - `song_artist_repository.go`: Song-artist association repository
@@ -172,9 +172,10 @@ Holds the project's core business logic, organized by functional module:
 - `repository.go`: Repository interface (implementation in `database/jsplugin_repository.go`)
 - `registry.go`: Plugin subscription-source resolution (fetch source manifests, version comparison; used by update checks/installs)
 - `auto_update.go`: Plugin auto-update (background checks and upgrades against subscription sources)
-- `api_bridge.go`: Host API bridge entry point (exposes http, storage, logger, songs (incl. `songs.download` persistence), playlists, etc. to QuickJS)
-- `api_bridge_net.go`: `songs.net` UDP Socket API (udpBind/multicast + reader goroutine pushing onData)
-- `api_bridge_tcp.go`: `songs.net.tcpConnect` outbound TCP Socket API (private/loopback/link-local addresses only, SSRF protection)
+- `api_bridge.go`: Host API bridge entry point (dispatches storage, songs, playlists, tags, net, and other Bridge APIs; jsruntime provides fetch and console directly)
+- `api_bridge_http_stream.go`: Cancellable HTTP stream handles (net permission, pull reads, deadlines, unload cleanup)
+- `api_bridge_net.go`: `songloft.net` UDP Socket API (udpBind/multicast + reader goroutine pushing onData)
+- `api_bridge_tcp.go`: `songloft.net.tcpConnect` outbound TCP Socket API (private/loopback/link-local addresses only, SSRF protection)
 - `api_bridge_websocket.go`: WebSocket client API (connect/send/receive/event push)
 - `api_bridge_fs.go`: Filesystem bridge (restricted read/write under permissions such as `fs:music`)
 - `api_bridge_command.go`: External command invocation bridge
@@ -275,7 +276,7 @@ type DB interface {
 }
 ```
 
-The service layer injects the `database.DB` interface; single-table writes go directly through `db.SongRepository().Create(...)`, while cross-table writes go through `db.RunInTx(ctx, func(ctx, uow *UnitOfWork) error { uow.Songs.Create(...); uow.PlaylistSongs.ReplaceSong(...) })`. See [database_migrations.md](database_migrations.md) for details.
+App obtains repositories from `database.DB` and wires services. Services receive the Repository interfaces they need and write through those injected repositories. Cross-table operations receive a minimal `Transactor` interface and use `RunInTx(ctx, func(ctx, uow *UnitOfWork) error { ... })` to share transaction-bound repositories. See [database_migrations.md](database_migrations.md) for details.
 
 > Tests no longer hand-write mocks; they uniformly use `database/testutil.OpenMemoryDB(t)` to spin up a `:memory:` SQLite that runs real migrations and real Repositories.
 
@@ -324,7 +325,7 @@ The backend provides a RESTful API, mainly including:
 In addition, music files, cover images, and lyrics are accessed via song-ID endpoints (which require the `access_token` query parameter for authentication):
 - `/api/v1/songs/{id}/play` — Streams the audio (supports the local / remote / radio types + Range)
 - `/api/v1/songs/{id}/cover` — Song cover (local songs are served by this backend; for network songs, `MarshalJSON` returns the original CDN URL directly)
-- `/api/v1/songs/{id}/lyric` — Plain-text LRC lyrics
+- `/api/v1/songs/{id}/lyric` — Direct LyricPayload JSON (lyric / tlyric / rlyric / lxlyric)
 
 > The old `/music/*` and `/cover/*` Base62-encoded short-link scheme has been fully retired; the related helper was removed along with the routes (`routers.go` only keeps a deprecation comment).
 

@@ -17,15 +17,6 @@ This document is based on the following source files:
    - [Pagination](#15-pagination)
 2. [Public and Authenticated Endpoints](#2-public-and-authenticated-endpoints)
 3. [API Group Index](#3-api-group-index)
-   - [Song Management](#31-song-management)
-   - [Playlist Management](#32-playlist-management)
-   - [Play History](#33-play-history)
-   - [Authentication](#34-authentication)
-   - [Configuration and Settings](#35-configuration-and-settings)
-   - [Scan Management](#36-scan-management)
-   - [Cache Management](#37-cache-management)
-   - [Plugin Management](#38-plugin-management)
-   - [System Management](#39-system-management)
 
 ---
 
@@ -44,7 +35,7 @@ All business endpoints are registered uniformly under the `/api/v1` route group.
 | Component | Default | Description |
 |----------|--------|------|
 | `scheme` | `http` | Can be `https` behind a reverse proxy |
-| `host:port` | `localhost:58091` | Configured at startup via the `-addr` parameter |
+| `host:port` | `localhost:58091` | Configured at startup via the `-port` parameter |
 | `base_path` | empty | Configured for sub-path deployment via `-base-path /xxx` or the environment variable `BASE_PATH=/xxx`; the backend strips the prefix with `http.StripPrefix` |
 
 Example: with the default startup, the song list endpoint is `http://localhost:58091/api/v1/songs`; if `BASE_PATH=/music` is configured, it becomes `http://localhost:58091/music/api/v1/songs`.
@@ -139,109 +130,30 @@ All `/api/v1/*` endpoints other than the public endpoints above require authenti
 
 ---
 
-## 3. API Group Index
+## 3. API group index
 
-**Diagram source**: `internal/app/routers.go`, `internal/handlers/jsplugin.go`, `internal/jsplugin/routes.go`
+This index was checked against `internal/app/routers.go`, plugin routes, and `docs/swagger.json`. OpenAPI currently lists 140 paths and 191 operations. HEAD is omitted and dynamic plugin routes use placeholders. Tables describe the current source snapshot; Swagger and the corresponding handler define request types and fields.
 
-Below are all API groups listed by business module. The endpoint count marked for each group is the **logical endpoint count** (HEAD aliases and `.m3u8` suffix variants are not counted separately).
+| Module | Prefix | Operations | Documentation |
+| --- | --- | --- | --- |
+| Songs | `/api/v1/songs` | 38 | [Songs](歌曲%20API.md) |
+| Playlists | `/api/v1/playlists` | 22 | [Playlists](歌单%20API.md) |
+| Play history | `/api/v1/play-history` | 3 | [Play history](播放历史%20API.md) |
+| Authentication | `/api/v1/auth` | 5 | [Authentication](认证%20API.md) |
+| Generic configuration | `/api/v1/configs` | 5 | [Generic configuration](配置与设置%20API.md) |
+| Business settings | `/api/v1/settings` | 48 | [Business settings](配置与设置%20API.md) |
+| Scanning and fingerprints | `/api/v1/scan` | 10 | [Scanning and fingerprints](扫描管理%20API.md) |
+| Cache | `/api/v1/cache-manage` | 5 | [Cache](缓存管理%20API.md) |
+| Plugin management | `/api/v1/jsplugins` | 13 | [Plugin management](插件管理%20API.md) |
+| Plugin runtime | `/api/v1/jsplugin` | 9 | [Plugin runtime](插件管理%20API.md) |
+| Shared plugin assets | `/api/v1/jsplugin-assets` | 2 | [Shared plugin assets](插件管理%20API.md) |
+| Plugin health | `/api/v1/plugins` | 1 | [Plugin health](插件管理%20API.md) |
+| Custom tags | `/api/v1/song-tags` | 9 | [Custom tags](标签与主题%20API.md) |
+| Theme packs | `/api/v1/theme-packs` | 9 | [Theme packs](标签与主题%20API.md) |
+| Backend upgrades | `/api/v1/upgrade` | 7 | [Backend upgrades](系统管理%20API.md) |
+| Resource and transcode proxy | `/api/v1/proxy` | 2 | [Resource and transcode proxy](系统管理%20API.md) |
+| Log export | `/api/v1/logs` | 1 | [Log export](系统管理%20API.md) |
+| Health check | `/api/v1/health` | 1 | [Health check](系统管理%20API.md) |
+| Version | `/api/v1/version` | 1 | [Version](系统管理%20API.md) |
 
-### 3.1 Song Management
-
-> See [Song API](歌曲%20API.md) for details
-
-| Prefix | Endpoints | Description |
-|------|--------|------|
-| `/api/v1/songs` | 19 | Song CRUD, batch operations, audio playback, covers, lyrics, HLS radio proxy |
-
-Covers: CRUD and batch operations (list/filter/add remote songs/radio/clean/batch delete/duplicate detection), metadata writing (lyrics/tag write-back/organization), media endpoints (audio streaming/covers/lyrics, supports Range requests and local/remote/radio dispatch), and HLS radio reverse proxy (m3u8 rewriting + segment forwarding).
-
-### 3.2 Playlist Management
-
-> See [Playlist API](歌单%20API.md) for details
-
-| Prefix | Endpoints | Description |
-|------|--------|------|
-| `/api/v1/playlists` | 16 | Playlist CRUD, song management, reordering, covers, import/export |
-
-Covers: CRUD and batch operations (list/create/update/delete/batch delete/reorder), playlist song management (add/reorder/remove/last played time), cover upload and retrieval, and data import/export (JSON format, with song deduplication matching).
-
-### 3.3 Play History
-
-> See [Play History API](播放历史%20API.md)
-
-| Prefix | Endpoints | Description |
-|------|--------|------|
-| `/api/v1/play-history` | 3 | Records and queries recently played songs per playback context (playlist / artist / album / other facet dimensions) |
-
-Covers: querying a context's play history (with full song details, capped at 50 entries, not paginated), clearing a context, and removing a single entry. Writing hooks into the `context_type` + `context_key` parameters of `POST /songs/{id}/played`; there is no dedicated write endpoint.
-
-### 3.4 Authentication
-
-> See [Authentication API](认证%20API.md) for details
-
-| Prefix | Endpoints | Description |
-|------|--------|------|
-| `/api/v1/auth` | 6 | Login, token refresh, logout, token management |
-
-Covers: public endpoints (login to obtain a token pair, refresh token) and authorized endpoints (logout, list/view/revoke active tokens).
-
-### 3.5 Configuration and Settings
-
-> See [Configuration and Settings API](配置与设置%20API.md) for details
-
-| Prefix | Endpoints | Description |
-|------|--------|------|
-| `/api/v1/configs` | 5 | Generic KV configuration (admin editor) |
-| `/api/v1/settings/*` | 20 | Business feature settings (10 items, each with GET + PUT) |
-
-Covers: generic KV configuration CRUD (admin editor), 10 business settings (HLS proxy/music path/scan strategy/auto scan/log level/plugin registries/HTTP proxy/tab configuration). Business settings are strongly-typed JSON with built-in defaults, and PUT can trigger side effects.
-
-### 3.6 Scan Management
-
-> See [Scan Management API](扫描管理%20API.md) for details
-
-| Prefix | Endpoints | Description |
-|------|--------|------|
-| `/api/v1/scan` | 8 | Music directory scanning, progress querying, audio fingerprint computation |
-
-Covers: scan control (trigger/progress/cancel), directory browsing (directory tree/directory name list), and batch audio fingerprint computation (status/start/progress).
-
-### 3.7 Cache Management
-
-> See [Cache Management API](缓存管理%20API.md) for details
-
-| Prefix | Endpoints | Description |
-|------|--------|------|
-| `/api/v1/cache-manage` | 5 | Remote song cache statistics, cleanup, configuration |
-
-Covers: cache statistics and manual cleanup, reading/updating cache configuration (directory path, LRU limit), and pre-validating a cache directory (writability + disk space).
-
-### 3.8 Plugin Management
-
-> See [Plugin Management API](插件管理%20API.md) for details
-
-| Prefix | Endpoints | Description |
-|------|--------|------|
-| `/api/v1/jsplugins` | 13 | Plugin lifecycle management (install, update, enable/disable) |
-| `/api/v1/jsplugin/{entryPath}` | 8 | Plugin runtime routes (static pages, API forwarding, file access) |
-| `/api/v1/jsplugin-assets` | 1 | Plugin common resources (CSS/JS/fonts) |
-| `/api/v1/plugins/health` | 1 | Plugin runtime health check |
-
-Covers: lifecycle management (install/update/delete/enable/disable/check for updates/batch update), plugin registry refresh and installation, runtime routes (static page SPA fallback + QuickJS sandbox API forwarding + direct file access), and common resources (theme CSS/JS/fonts).
-
-### 3.9 System Management
-
-> See [System Management API](系统管理%20API.md) for details
-
-| Prefix | Endpoints | Description |
-|------|--------|------|
-| `/api/v1/version` | 1 | Version information (public) |
-| `/api/v1/health` | 1 | Health check (public) |
-| `/api/v1/upgrade` | 5 | System upgrade (Docker only) |
-| `/api/v1/proxy` | 1 | Resource proxy (resolves CDN CORS) |
-
-Covers: version information and health check (public), online upgrade (version list/check/start/rollback/progress, available only on Docker), and resource proxy (resolves external CDN CORS restrictions).
-
----
-
-> **Full API documentation**: After starting in development mode, visit `http://localhost:58091/swagger/index.html` to view the interactive Swagger UI generated by swaggo from source code annotations.
+Interactive documentation in development builds: `/swagger/index.html`. For the generated static reference, see [Swagger API](../../../swagger-api/index.md).

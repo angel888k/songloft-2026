@@ -49,16 +49,16 @@ Songloft 支持通过 `.songloft-theme` 主题包自定义应用的配色、圆�
 
 | 字段 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| `schemaVersion` | int | ✅ | 固定为 `1`（当前版本） |
+| `schemaVersion` | int | ✅ | 当前制作建议使用 `1`；后端校验要求不小于 1 |
 | `id` | string | ✅ | 全局唯一 ID，推荐格式 `作者名.主题名`，如 `songloft.neon-night` |
 | `name` | string | ✅ | 显示名称 |
-| `version` | string | ✅ | 语义化版本号，如 `1.0.0` |
+| `version` | string | 否 | 发布时建议提供语义化版本号，如 `1.0.0`；后端不校验非空或版本格式 |
 | `author` | string | 否 | 作者名 |
 | `description` | string | 否 | 简短描述（建议不超过 50 字） |
 
 ### 配色（light / dark）
 
-`light` 和 `dark` 字段分别定义亮色和暗色模式的配色方案，至少需要提供一个。
+`light` 和 `dark` 分别定义亮色与暗色配色，制作时建议两者都提供。后端允许两者缺省；只要提供某一配色对象，其 `seedColor` 就必须为合法颜色。
 
 | 字段 | 类型 | 必填 | 说明 |
 |------|------|------|------|
@@ -94,6 +94,8 @@ Songloft 使用 Flutter 的 `ColorScheme.fromSeed()` 方法，从 seedColor 自�
 | 字段 | 类型 | 必填 | 说明 |
 |------|------|------|------|
 | `navigationStyle` | string | 否 | 导航栏外观样式。`"standard"`（默认）= 标准导航指示器；`"capsule"` = 胶囊形玻璃导航栏（与 Liquid Glass 主题配合使用） |
+
+后端校验来源为 `internal/models/theme_pack.go`。`playerGradient` 校验每个颜色的格式，不限制数组长度；制作时建议至少两个颜色以形成渐变。同一 `id` 重新导入会更新已存在的主题包。
 
 ## 制作流程
 

@@ -198,6 +198,13 @@ Beyond the web interface, Songloft also offers a more powerful cross-platform Fl
 
 Android ships a release-signed APK; iOS an IPA requiring user re-signing; HarmonyOS a signed HAP whose authorized devices depend on its profile; Web standalone/embedded archives. HarmonyOS is experimental. Web needs HTTPS and COOP/COEP headers; subpath deployment is unverified. See [client selection](docs/en/clients.md).
 
+### 🖥️ Songloft Desktop (Electron Client)
+
+[Songloft Desktop](https://github.com/songloft-org/songloft-desktop) is Songloft's official Electron desktop client for Windows, macOS, and Linux. It requires a Songloft server and does not include a bundled local backend.
+
+- [Downloads and installers](https://github.com/songloft-org/songloft-desktop/releases/latest): see the repository instructions and Release assets for installation on each platform.
+- [Project documentation and source](https://github.com/songloft-org/songloft-desktop) · [Report issues](https://github.com/songloft-org/songloft-desktop/issues).
+
 ### 📺 TV / Car Client
 
 In addition to the Flutter client, for TV and in-vehicle infotainment (IVI) systems we recommend the dedicated **[songloft-tv](https://github.com/songloft-org/songloft-tv)** client, designed for Android TV and car head units with remote control and touchscreen support.
@@ -221,7 +228,6 @@ The following third-party clients are independently maintained by community deve
 
 | Client | Platforms | Description |
 |--------|-----------|-------------|
-| [Songloft Desktop](https://github.com/edwinhuish/songloft-desktop) | Windows / macOS / Linux | Electron desktop client independently maintained by edwinhuish; requires a Songloft server |
 | [MusicArk (音乐方舟)](https://musicark.pro/) | HarmonyOS | Multi-source media player for HarmonyOS NEXT with 16 library types |
 | [Amcfy Music (箭头音乐)](https://www.amcfy.com/) | Android / iOS / HarmonyOS / Windows / macOS | Modern multi-platform music player compatible with various music server protocols |
 | [Stream Music (音流)](https://music.aqzscn.cn/) | Android / iOS / macOS / Windows | Cross-platform NAS music player supporting multiple self-hosted music services |
@@ -620,4 +626,3 @@ For detailed release notes, see [CHANGELOG.md](CHANGELOG.md).
 ## 📄 License
 
 This project is open-sourced under the [Apache-2.0 License](LICENSE).
-

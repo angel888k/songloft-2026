@@ -554,7 +554,7 @@ const i = setInterval(() => songloft.log.info("heartbeat"), 60000);
 clearInterval(i);
 ```
 
-**Note:** Timer callbacks execute in a separate background goroutine (which checks for due timers every 500ms) and use a TryLock mechanism to ensure they **do not block HTTP request handling**. While an HTTP request is being processed, the timer automatically yields and waits for the next round. The minimum interval for `setInterval` is capped at 10ms.
+**Note:** A background goroutine attempts to acquire the VM mutex with TryLock every 500ms and skips the round when busy. Timer callbacks share the VM with HTTP JavaScript; lengthy synchronous work can still hold the lock. The minimum interval for `setInterval` is capped at 10ms.
 
 ### songloft.storage — Persistent Storage
 
@@ -1465,7 +1465,7 @@ If the new version fails to load, the system attempts to roll back to the old ve
 ### Performance Tips
 
 1. **Avoid long-running blocking** — `onHTTPRequest` should return quickly
-2. **Use timers wisely** — timer callbacks execute in a separate thread and do not block HTTP requests. However, network operations such as `fetch` inside a callback still hold the VM lock, so avoid running multiple serial network requests in a single callback
+2. **Use timers wisely** — callbacks and HTTP JavaScript access the VM serially, so avoid lengthy synchronous computation. The HTTP work for `fetch` runs asynchronously in a Go goroutine; Promise continuations still require event-loop progress
 3. **Cache computed results** — use `songloft.storage` to cache frequently accessed data
 4. **Control response body size** — avoid returning overly large JSON responses
 5. **Timer intervals** — we recommend a `setInterval` interval of no less than 1 second; the system checks for due timers every 500ms

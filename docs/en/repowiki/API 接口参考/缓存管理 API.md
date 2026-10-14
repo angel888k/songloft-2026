@@ -233,7 +233,7 @@ Concurrent requests for the same `song.ID` download only once. When the first re
 
 ### Cross-Device File Moving
 
-Cache downloads use `moveFile` instead of a bare `os.Rename`, automatically handling the `EXDEV` error across file systems (such as from `/tmp` to a separate mount point) by falling back to copy + remove.
+Cache downloads use `fileutil.MoveFile` instead of a bare `os.Rename`, automatically handling the `EXDEV` error across file systems (such as from `/tmp` to a separate mount point) by falling back to copy + remove.
 
 ---
 

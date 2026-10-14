@@ -217,7 +217,7 @@ cd internal/database/migrations
 goose sqlite3 ../../../data/songloft.db down
 ```
 
-Don't roll back in production. The project convention is "move forward by adding columns, never drop columns"; if you really need to reset, `rm -f data/songloft.db` and re-run the migrations — it's simpler.
+Use forward migrations in production and check backup / program compatibility before restoration. To verify migrations from an empty database, use a temporary database path instead of deleting an existing user database.
 
 ## File Reference Quick-Lookup
 

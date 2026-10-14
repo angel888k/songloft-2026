@@ -92,7 +92,7 @@ chi.Router (root)
 
 ### 3.2 Middleware Stack
 
-Global middleware is registered in `setupBaseRouter()`, in execution order: Compress(Gzip) -> RequestLogger(slog) -> Tracely(panic reporting) -> Recoverer(500) -> RequestID -> CORS. The authentication middleware `AuthMiddleware` is not global middleware; it is added on demand inside each route group.
+Global middleware is registered in `setupBaseRouter()`, in execution order: Compress(Gzip) -> RequestLogger(slog) -> Tracely(panic reporting) -> Recoverer(500) -> RequestID -> CORS -> CORP. The authentication middleware `AuthMiddleware` is not global middleware; it is added on demand inside each route group.
 
 ### 3.3 Route Grouping Strategy
 
@@ -147,7 +147,7 @@ Each Handler follows a three-step creation: (1) a struct holding service depende
 
 ### 5.2 Handler List
 
-The project has 14 Handlers in total, all located in `internal/handlers/`:
+The main Handlers are located in `internal/handlers/`:
 
 - **Business core**: `AuthHandler`(AuthService), `SongHandler`(SongService + CacheService + 4 dependencies), `PlaylistHandler`(PlaylistService), `BackupHandler`(BackupService)
 - **Config management**: `ConfigHandler`(ConfigService), `ScanHandler`(SongService + Scanner + ConfigService), `HLSHandler`(SongService + ConfigService), `CacheHandler`(CacheService + ConfigService), `LogHandler`(ConfigService + LevelVar)
@@ -237,173 +237,241 @@ Creating new tags on a whim is forbidden.
 
 ---
 
-## 8. Complete Route List
+## 8. Complete route inventory
 
-**Diagram sources**: `internal/app/routers.go`, `internal/handlers/jsplugin.go`, `internal/jsplugin/routes.go`
+The following inventory comes from the current `docs/swagger.json` and was checked against route registration. HEAD is omitted. Installed plugins determine dynamic paths; OpenAPI placeholders are not fixed business APIs.
 
-The following route list covers all endpoints registered in `routers.go`, `JSPluginHandler.RegisterRoutes`, and `jsplugin/routes.go`. Unless otherwise noted, all require Bearer authentication.
+### Songs
 
-### 8.1 Authentication (AuthHandler)
+| Path | Methods |
+| --- | --- |
+| `/api/v1/songs` | GET |
+| `/api/v1/songs/batch-delete` | POST |
+| `/api/v1/songs/clean` | POST |
+| `/api/v1/songs/duplicates` | GET |
+| `/api/v1/songs/facets` | GET |
+| `/api/v1/songs/folders` | GET |
+| `/api/v1/songs/ids` | GET |
+| `/api/v1/songs/names` | GET |
+| `/api/v1/songs/organize` | POST |
+| `/api/v1/songs/organize/preview` | POST |
+| `/api/v1/songs/radio` | POST |
+| `/api/v1/songs/random` | GET |
+| `/api/v1/songs/refresh-metadata` | POST |
+| `/api/v1/songs/refresh-metadata/cancel` | POST |
+| `/api/v1/songs/refresh-metadata/progress` | GET |
+| `/api/v1/songs/remote` | POST |
+| `/api/v1/songs/stats` | GET |
+| `/api/v1/songs/{id}` | GET, PUT, DELETE |
+| `/api/v1/songs/{id}/activate` | POST |
+| `/api/v1/songs/{id}/artists` | GET, PUT |
+| `/api/v1/songs/{id}/audio-tracks` | GET |
+| `/api/v1/songs/{id}/cover` | GET |
+| `/api/v1/songs/{id}/hls/playlist` | GET |
+| `/api/v1/songs/{id}/hls/segment` | GET |
+| `/api/v1/songs/{id}/lyric` | GET |
+| `/api/v1/songs/{id}/lyrics` | PUT |
+| `/api/v1/songs/{id}/play` | GET |
+| `/api/v1/songs/{id}/play.m3u8` | GET |
+| `/api/v1/songs/{id}/played` | POST |
+| `/api/v1/songs/{id}/song-tags` | GET, PUT |
+| `/api/v1/songs/{id}/tags` | PUT |
+| `/api/v1/songs/{id}/tracks` | GET |
+| `/api/v1/songs/{id}/video-hls/playlist.m3u8` | GET |
+| `/api/v1/songs/{id}/video-hls/{path}` | GET |
 
-| Method | Path | Auth | Description |
-|------|------|------|------|
-| POST | `/auth/login` | None | User login |
-| POST | `/auth/refresh` | None | Refresh token |
-| POST | `/auth/logout` | Bearer | Logout |
-| GET | `/auth/tokens` | Bearer | List all tokens |
-| GET | `/auth/tokens/{token_id}` | Bearer | Token details |
-| DELETE | `/auth/tokens/{token_id}` | Bearer | Revoke token |
+### Playlists
 
-### 8.2 Songs (SongHandler + HLSHandler)
+| Path | Methods |
+| --- | --- |
+| `/api/v1/playlists` | GET, POST |
+| `/api/v1/playlists/batch-delete` | POST |
+| `/api/v1/playlists/export` | GET |
+| `/api/v1/playlists/import` | POST |
+| `/api/v1/playlists/reorder` | PUT |
+| `/api/v1/playlists/{id}` | GET, PUT, DELETE |
+| `/api/v1/playlists/{id}/cover` | GET, POST |
+| `/api/v1/playlists/{id}/pin` | PUT |
+| `/api/v1/playlists/{id}/song-ids` | GET |
+| `/api/v1/playlists/{id}/songs` | GET, POST |
+| `/api/v1/playlists/{id}/songs/move` | PUT |
+| `/api/v1/playlists/{id}/songs/reorder` | PUT |
+| `/api/v1/playlists/{id}/songs/sort` | POST |
+| `/api/v1/playlists/{id}/songs/{songId}` | DELETE |
+| `/api/v1/playlists/{id}/sort` | PUT |
+| `/api/v1/playlists/{id}/touch` | POST |
+| `/api/v1/playlists/{id}/visibility` | PUT |
 
-| Method | Path | Description |
-|------|------|------|
-| GET | `/songs` | Song list (pagination + filtering) |
-| GET | `/songs/ids` | Song ID list |
-| POST | `/songs/remote` | Add remote song |
-| POST | `/songs/radio` | Add radio |
-| POST | `/songs/clean` | Clean up invalid songs |
-| POST | `/songs/batch-delete` | Batch delete |
-| POST | `/songs/organize` | Organize song files |
-| POST | `/songs/organize/preview` | Preview batch organize (dry-run) |
-| GET | `/songs/duplicates` | Duplicate song detection |
-| GET | `/songs/facets` | Tag category aggregation |
-| POST | `/songs/refresh-metadata` | Start remote metadata refresh |
-| GET | `/songs/refresh-metadata/progress` | Metadata refresh progress |
-| POST | `/songs/refresh-metadata/cancel` | Cancel metadata refresh |
-| GET | `/songs/{id}` | Get song details |
-| PUT | `/songs/{id}` | Update song information |
-| DELETE | `/songs/{id}` | Delete song |
-| PUT | `/songs/{id}/lyrics` | Update lyrics |
-| PUT | `/songs/{id}/tags` | Write audio tags |
-| POST | `/songs/{id}/activate` | Activate song |
-| POST | `/songs/{id}/played` | Play event notification (broadcast to plugins) |
-| GET/HEAD | `/songs/{id}/play` | Play audio stream (binary) |
-| GET/HEAD | `/songs/{id}/play.m3u8` | HLS radio alias (same handler) |
-| GET | `/songs/{id}/cover` | Song cover art |
-| GET | `/songs/{id}/lyric` | Song lyrics |
-| GET/HEAD | `/songs/{id}/hls/playlist` | HLS playlist proxy |
-| GET/HEAD | `/songs/{id}/hls/segment` | HLS segment proxy |
+### Play history
 
-### 8.3 Playlists (PlaylistHandler + BackupHandler)
+| Path | Methods |
+| --- | --- |
+| `/api/v1/play-history` | GET, DELETE |
+| `/api/v1/play-history/entry` | DELETE |
 
-| Method | Path | Description |
-|------|------|------|
-| GET | `/playlists/export` | Export playlists |
-| POST | `/playlists/import` | Import playlists |
-| GET | `/playlists` | Playlist list |
-| POST | `/playlists` | Create playlist |
-| PUT | `/playlists/reorder` | Reorder playlists |
-| GET | `/playlists/{id}` | Playlist details |
-| PUT | `/playlists/{id}` | Update playlist |
-| DELETE | `/playlists/{id}` | Delete playlist |
-| POST | `/playlists/batch-delete` | Batch delete playlists |
-| GET | `/playlists/{id}/songs` | Songs in a playlist |
-| POST | `/playlists/{id}/songs` | Add song to playlist |
-| PUT | `/playlists/{id}/songs/reorder` | Reorder songs in a playlist |
-| DELETE | `/playlists/{id}/songs/{songId}` | Remove a song from a playlist |
-| POST | `/playlists/{id}/touch` | Update playlist access time |
-| POST | `/playlists/{id}/cover` | Upload playlist cover art |
-| GET | `/playlists/{id}/cover` | Get playlist cover art |
+### Authentication
 
-### 8.4 Config and Settings
+| Path | Methods |
+| --- | --- |
+| `/api/v1/auth/login` | POST |
+| `/api/v1/auth/logout` | POST |
+| `/api/v1/auth/refresh` | POST |
+| `/api/v1/auth/tokens` | GET |
+| `/api/v1/auth/tokens/{token_id}` | DELETE |
 
-| Method | Path | Handler | Description |
-|------|------|---------|------|
-| GET/PUT | `/settings/remote-title-source` | SongHandler | Network song title source |
-| GET/PUT | `/settings/hls-proxy` | HLSHandler | HLS proxy toggle |
-| GET/PUT | `/settings/music-path` | ScanHandler | Music library path |
-| GET/PUT | `/settings/scan-playlist-mode` | ScanHandler | Playlist merge mode |
-| GET/PUT | `/settings/scan-auto-create-playlists` | ScanHandler | Auto-create playlists |
-| GET/PUT | `/settings/scan-title-source` | ScanHandler | Title source |
-| GET/PUT | `/settings/auto-scan` | ScanHandler | Auto scan |
-| GET/PUT | `/settings/log-level` | LogHandler | Log level |
-| GET/PUT | `/settings/plugin-registries` | JSPluginHandler | Plugin registries |
-| GET/PUT | `/settings/http-proxy` | JSPluginHandler | HTTP proxy |
-| GET/PUT | `/settings/plugin-keep-alive` | JSPluginHandler | Plugin keep-alive allowlist |
-| GET/PUT | `/settings/plugin-auto-update` | JSPluginHandler | Plugin auto-update |
-| GET/PUT | `/settings/github-proxy` | UpgradeHandler | GitHub update proxy |
-| GET/PUT | `/settings/tab-config` | ConfigHandler | Tab page config |
-| GET/PUT | `/settings/library-browse` | ConfigHandler | Library browse view |
-| GET/PUT | `/settings/user-preferences` | ConfigHandler | User preferences |
-| GET/PUT | `/settings/equalizer` | ConfigHandler | Equalizer |
-| GET | `/configs` | ConfigHandler | Config list (generic KV) |
-| POST | `/configs` | ConfigHandler | Create config |
-| GET | `/configs/{key}` | ConfigHandler | Get config |
-| PUT | `/configs/{key}` | ConfigHandler | Update config |
-| DELETE | `/configs/{key}` | ConfigHandler | Delete config |
+### Generic configuration
 
-### 8.5 Scan (ScanHandler)
+| Path | Methods |
+| --- | --- |
+| `/api/v1/configs` | GET, POST |
+| `/api/v1/configs/{key}` | GET, PUT, DELETE |
 
-| Method | Path | Description |
-|------|------|------|
-| POST | `/scan` | Scan and import |
-| GET | `/scan/progress` | Scan progress |
-| POST | `/scan/cancel` | Cancel scan |
-| GET | `/scan/directories` | Directory list |
-| GET | `/scan/dir-names` | Directory name list |
-| GET | `/scan/fingerprints/status` | Fingerprint status |
-| POST | `/scan/fingerprints` | Start fingerprint computation |
-| GET | `/scan/fingerprints/progress` | Fingerprint computation progress |
-| POST | `/scan/fingerprints/cancel` | Interrupt fingerprint computation |
+### Business settings
 
-### 8.6 Cache (CacheHandler)
+| Path | Methods |
+| --- | --- |
+| `/api/v1/settings/auto-scan` | GET, PUT |
+| `/api/v1/settings/equalizer` | GET, PUT |
+| `/api/v1/settings/github-discovery-token` | GET, PUT |
+| `/api/v1/settings/github-proxy` | GET, PUT |
+| `/api/v1/settings/hls-proxy` | GET, PUT |
+| `/api/v1/settings/http-proxy` | GET, PUT |
+| `/api/v1/settings/library-browse` | GET, PUT |
+| `/api/v1/settings/log-level` | GET, PUT |
+| `/api/v1/settings/music-path` | GET, PUT |
+| `/api/v1/settings/plugin-auto-update` | GET, PUT |
+| `/api/v1/settings/plugin-keep-alive` | GET, PUT |
+| `/api/v1/settings/plugin-order` | GET, PUT |
+| `/api/v1/settings/plugin-registries` | GET, PUT |
+| `/api/v1/settings/proxy-private-allowlist` | GET, PUT |
+| `/api/v1/settings/remote-title-source` | GET, PUT |
+| `/api/v1/settings/scan-auto-create-playlists` | GET, PUT |
+| `/api/v1/settings/scan-auto-fingerprint` | GET, PUT |
+| `/api/v1/settings/scan-playlist-mode` | GET, PUT |
+| `/api/v1/settings/scan-title-source` | GET, PUT |
+| `/api/v1/settings/tab-config` | GET, PUT |
+| `/api/v1/settings/tag-sync-to-file` | GET, PUT |
+| `/api/v1/settings/theme-catalog-url` | GET, PUT |
+| `/api/v1/settings/user-preferences` | GET, PUT |
+| `/api/v1/settings/volume-normalize` | GET, PUT |
 
-| Method | Path | Description |
-|------|------|------|
-| GET | `/cache-manage/stats` | Cache statistics |
-| POST | `/cache-manage/clean` | Clean cache |
-| GET | `/cache-manage/config` | Cache config |
-| PUT | `/cache-manage/config` | Update cache config |
-| POST | `/cache-manage/validate-dir` | Validate cache directory |
+### Scanning and fingerprints
 
-### 8.7 Upgrade (UpgradeHandler)
+| Path | Methods |
+| --- | --- |
+| `/api/v1/scan` | POST |
+| `/api/v1/scan/cancel` | POST |
+| `/api/v1/scan/dir-names` | GET |
+| `/api/v1/scan/directories` | GET |
+| `/api/v1/scan/fingerprints` | POST |
+| `/api/v1/scan/fingerprints/cancel` | POST |
+| `/api/v1/scan/fingerprints/failed` | GET |
+| `/api/v1/scan/fingerprints/progress` | GET |
+| `/api/v1/scan/fingerprints/status` | GET |
+| `/api/v1/scan/progress` | GET |
 
-| Method | Path | Description |
-|------|------|------|
-| GET | `/upgrade/versions` | Version list |
-| GET | `/upgrade/check` | Check for updates (Docker only) |
-| POST | `/upgrade/start` | Start upgrade |
-| POST | `/upgrade/reset` | Reset to base image |
-| GET | `/upgrade/progress` | Upgrade progress |
+### Cache
 
-### 8.8 JS Plugin Management (JSPluginHandler)
+| Path | Methods |
+| --- | --- |
+| `/api/v1/cache-manage/clean` | POST |
+| `/api/v1/cache-manage/config` | GET, PUT |
+| `/api/v1/cache-manage/stats` | GET |
+| `/api/v1/cache-manage/validate-dir` | POST |
 
-| Method | Path | Description |
-|------|------|------|
-| GET | `/jsplugins` | Plugin list |
-| POST | `/jsplugins/upload` | Upload plugin |
-| POST | `/jsplugins/update-all` | Batch update |
-| POST | `/jsplugins/storage/cleanup` | Clean up orphaned persistent storage |
-| POST | `/jsplugins/registry/refresh` | Refresh registry |
-| POST | `/jsplugins/registry/install` | Install from registry |
-| GET | `/jsplugins/{id}` | Plugin details |
-| PUT | `/jsplugins/{id}` | Update plugin |
-| DELETE | `/jsplugins/{id}` | Delete plugin |
-| POST | `/jsplugins/{id}/enable` | Enable plugin |
-| POST | `/jsplugins/{id}/disable` | Disable plugin |
-| GET | `/jsplugins/{id}/check-update` | Check for plugin update |
-| POST | `/jsplugins/{id}/update` | Download update |
-| GET | `/plugins/health` | Audio source health |
+### Plugin management
 
-### 8.9 JS Plugin Runtime (jsplugin.Manager)
+| Path | Methods |
+| --- | --- |
+| `/api/v1/jsplugins` | GET |
+| `/api/v1/jsplugins/registry/install` | POST |
+| `/api/v1/jsplugins/registry/refresh` | POST |
+| `/api/v1/jsplugins/storage/cleanup` | POST |
+| `/api/v1/jsplugins/update-all` | POST |
+| `/api/v1/jsplugins/upload` | POST |
+| `/api/v1/jsplugins/{id}` | GET, PUT, DELETE |
+| `/api/v1/jsplugins/{id}/check-update` | GET |
+| `/api/v1/jsplugins/{id}/disable` | POST |
+| `/api/v1/jsplugins/{id}/enable` | POST |
+| `/api/v1/jsplugins/{id}/update` | POST |
 
-| Method | Path | Auth | Description |
-|------|------|------|------|
-| GET | `/jsplugin/{entryPath}[/]` | None | Plugin entry HTML |
-| GET | `/jsplugin/{entryPath}/static[/*]` | None | Plugin static assets |
-| GET | `/jsplugin-assets/*` | None | Common CSS/JS/fonts |
-| GET/HEAD | `/jsplugin/{entryPath}/files/*` | Bearer | Plugin file serving |
-| ANY | `/jsplugin/{entryPath}/*` | Bearer* | API catch-all forwarding |
+### Plugin runtime
 
-*Note: paths declared in the plugin manifest's `publicPaths` are exempted from authentication via `PublicPathChecker`.
+| Path | Methods |
+| --- | --- |
+| `/api/v1/jsplugin/{entryPath}` | GET |
+| `/api/v1/jsplugin/{entryPath}/files/{path}` | GET, HEAD |
+| `/api/v1/jsplugin/{entryPath}/static` | GET |
+| `/api/v1/jsplugin/{entryPath}/static/{path}` | GET |
+| `/api/v1/jsplugin/{entryPath}/{path}` | GET, PUT, POST, DELETE |
 
-### 8.10 Other
+### Shared plugin assets
 
-| Method | Path | Auth | Description |
-|------|------|------|------|
-| GET | `/version` | None | Version information |
-| GET | `/health` | None | Health check |
-| GET | `/proxy` | Bearer | External resource CORS proxy |
+| Path | Methods |
+| --- | --- |
+| `/api/v1/jsplugin-assets/web-core/{path}` | GET |
+| `/api/v1/jsplugin-assets/{path}` | GET |
 
-> All paths above omit the `/api/v1` prefix. The full URL is `http://<host>:58091/api/v1/<path>`.
+### Plugin health
+
+| Path | Methods |
+| --- | --- |
+| `/api/v1/plugins/health` | GET |
+
+### Custom tags
+
+| Path | Methods |
+| --- | --- |
+| `/api/v1/song-tags` | GET, POST |
+| `/api/v1/song-tags/{id}` | GET, PUT, DELETE |
+| `/api/v1/song-tags/{id}/bind` | POST |
+| `/api/v1/song-tags/{id}/song-ids` | GET |
+| `/api/v1/song-tags/{id}/songs` | GET |
+| `/api/v1/song-tags/{id}/unbind` | POST |
+
+### Theme packs
+
+| Path | Methods |
+| --- | --- |
+| `/api/v1/theme-packs` | GET, POST |
+| `/api/v1/theme-packs/active` | GET, PUT, DELETE |
+| `/api/v1/theme-packs/catalog/install` | POST |
+| `/api/v1/theme-packs/catalog/refresh` | POST |
+| `/api/v1/theme-packs/{themeID}` | GET, DELETE |
+
+### Backend upgrades
+
+| Path | Methods |
+| --- | --- |
+| `/api/v1/upgrade/check` | GET |
+| `/api/v1/upgrade/progress` | GET |
+| `/api/v1/upgrade/reset` | POST |
+| `/api/v1/upgrade/start` | POST |
+| `/api/v1/upgrade/upload` | POST |
+| `/api/v1/upgrade/upload/confirm` | POST |
+| `/api/v1/upgrade/versions` | GET |
+
+### Resource and transcode proxy
+
+| Path | Methods |
+| --- | --- |
+| `/api/v1/proxy` | GET |
+| `/api/v1/proxy/transcode` | GET |
+
+### Log export
+
+| Path | Methods |
+| --- | --- |
+| `/api/v1/logs/export` | GET |
+
+### Health check
+
+| Path | Methods |
+| --- | --- |
+| `/api/v1/health` | GET |
+
+### Version
+
+| Path | Methods |
+| --- | --- |
+| `/api/v1/version` | GET |

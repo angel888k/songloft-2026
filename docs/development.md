@@ -1,37 +1,45 @@
 # 文档站开发说明
 
-本文档面向希望在本地预览或修改 Songloft 文档站的开发者。
+本站使用 VitePress 自定义主题。页面内容来源分为手工文档、落地页结构化数据和构建时同步 / 生成的页面。修改前先确认来源，并同步中英文。
 
-## 本地预览
+## 本地预览与构建
 
 ```bash
 cd docs
-npm install
+npm ci
 npm run docs:dev
+
+# 验证生产构建后预览产物
+npm run docs:build
+npm run docs:preview
 ```
 
-默认监听 `http://localhost:3030`。`docs:dev` 会先执行 `sync`（把仓库根 `README.md` / `CHANGELOG.md` 同步为 `docs/quick-start.md` / `docs/changelog.md`）和 `fetch-issues`（从 GitHub 拉取带「文档」标签的 issues 生成 `docs/issues/*.md`），再启动 VitePress。
+`docs:dev` 默认监听 `http://localhost:3030`。`docs:dev` / `docs:build` 依次执行 `sync`、`fetch-issues` 和 `swagger-to-md`，再启动 VitePress。预览已构建页面使用 `docs:preview`；不要同时运行开发服务和生产构建，让开发侧文件监听处理 `.vitepress/dist` 的大批变化。
 
-## 目录分类
+## 内容来源
 
-`docs/` 下的 Markdown 文件分三类，请在修改前先判断文件类型：
+| 页面 / 文件 | 来源 | 修改位置 |
+| --- | --- | --- |
+| `index.md / en/index.md` | 自定义落地页 | `.vitepress/data/*.ts`、`.vitepress/theme/components/landing/*.vue` |
+| `faq.md / architecture*.md / clients.md / repowiki/**` | 手工维护 Markdown | 对应中英文文件 / Corresponding Chinese and English files |
+| `quick-start.md / en/quick-start.md` | 同步 | 根 README.md / README.en.md |
+| `changelog.md` | 同步 | 根 CHANGELOG.md |
+| `NOTICE.md / PRIVACY.md / TERMS.md 及英文版` | 同步 | 根目录对应声明 / Corresponding root statements |
+| `player/** / player-lynx/** / addon/** / plugin-toolchain/**` | 子模块同步 | sync-docs.mjs 中的 from 源文件 / from sources in sync-docs.mjs |
+| `swagger.json / swagger.yaml / docs.go` | swag 生成，入库 | handler 注释 + make swagger / Handler annotations + make swagger |
+| `swagger-api/**` | 构建时生成，忽略 | docs/swagger.json → scripts/swagger-to-md.mjs |
+| `issues/**` | GitHub 读取生成，忽略 | 带「文档」标签的 Issue / Issues labeled 文档 |
 
-| 文件 | 类型 | 如何修改 |
-|------|------|---------|
-| `index.md` | 源文件 | 直接编辑 |
-| `faq.md` | 源文件 | 直接编辑 |
-| `js-plugin-development-guide.md` | 源文件 | 直接编辑 |
-| `swagger.json` | 手动维护 | 从主仓 `songloft/docs/swagger.json` 复制 |
-| `quick-start.md` | 构建时生成 | 改仓库根的 `README.md` |
-| `changelog.md` | 构建时生成 | 改仓库根的 `CHANGELOG.md` |
-| `issues/*.md` | 运行时生成 | 改 GitHub issues（带「文档」标签） |
+落地页 `index.md` 仅挂载 `<Landing />`，安装入口在 `downloads.ts`，功能在 `features.ts`，公共文案在 `landing-i18n.ts`；数据的 `{zh,en}` 字段需同步。
 
-生成类文件全部被 `docs/.gitignore` 忽略，不要提交，也不要手动编辑。
+`repowiki` 是入库且手工维护的 Markdown，仓内没有重新生成它的脚本。代码变更后直接更新相关页面；不要把它与忽略的 Swagger API 页面混为一类。
 
-## 同步脚本
+子模块文档应改源仓库，再更新主仓库指针。未 checkout 子模块时同步脚本仅警告，相关页面可能缺失；CI 的子模块初始化清单见 `.github/workflows/static.yml`。
 
-- `scripts/sync-docs.mjs`：仓库根 Markdown → `docs/`。新增同步项在 `syncItems` 数组追加一行即可。
-- `scripts/fetch-issues.mjs`：调用 GitHub API 抓取带「文档」标签的 issues，写入 `docs/issues/*.md`。依赖环境变量 `VITE_GITHUB_ISSUES_TOKEN`（CI 中由 secrets 注入）。本地若未设置该变量，脚本会清空 `docs/issues/` 后直接跳过，站点仍可构建但 issues 页面为空。
+## 同步与生成脚本
 
-两个脚本都由 `docs/package.json` 串联到 `docs:dev` / `docs:build` 里，必须在 `vitepress build` **之前**执行，否则 VitePress 扫描不到新生成的页面。
+- `scripts/sync-docs.mjs`：同步根文档和子模块文档，并重写相对链接；公开目标 URL 与源路径可不同。
+- `scripts/fetch-issues.mjs`：读取 GitHub Issue；本地未设置 `VITE_GITHUB_ISSUES_TOKEN` 时清空旧生成页面并跳过。
+- `scripts/swagger-to-md.mjs`：将入库的 Swagger JSON 转为忽略的 API Markdown；新增接口先改 handler 注释并运行 `make swagger`。
 
+这些预处理步骤必须在 VitePress 扫描页面之前执行。具体忽略范围以 `docs/.gitignore` 为准，不能把所有生成文件都视为不入库。

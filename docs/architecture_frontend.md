@@ -8,7 +8,7 @@ Songloft 前端是一个基于 Flutter 的跨平台音乐播放器，支持 **An
 
 ## 技术栈
 
-- **框架**: Flutter 3.29+ / Dart 3.7+
+- **框架**: Flutter 3.41+ / Dart 3.7+
 - **状态管理**: flutter_riverpod ^3.1.0（手写 Provider，不使用 code generation）
 - **路由**: go_router ^17.1.0（声明式路由 + ShellRoute）
 - **HTTP 客户端**: dio ^5.7.0
@@ -593,5 +593,5 @@ make build-go-desktop-macos-arm64  # → clients/player/macos/Runner/songloft-se
 ```
 
 预编译安装包下载:
-- 标准版（需连接服务器）: [https://github.com/songloft-org/clients/player/releases](https://github.com/songloft-org/clients/player/releases)
+- 标准版（需连接服务器）: [https://github.com/songloft-org/songloft-player/releases](https://github.com/songloft-org/songloft-player/releases)
 - Bundle 版（内嵌后端）: [https://github.com/songloft-org/songloft/releases](https://github.com/songloft-org/songloft/releases)（`songloft-bundled-*` 文件）

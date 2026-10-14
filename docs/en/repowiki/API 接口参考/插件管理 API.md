@@ -688,3 +688,28 @@ Resources are set to strong caching (1 year, immutable).
 ---
 
 **Section source:** `internal/handlers/jsplugin.go` / `internal/handlers/jsplugin_registry.go` / `internal/jsplugin/routes.go` / `internal/app/routers.go`
+
+## Additional current interfaces
+
+These interfaces fill gaps in the earlier inventory. The corresponding handler and Swagger define request fields, response models, and side effects.
+
+### GET /api/v1/jsplugin-assets/web-core/{path}
+
+Serve Lynx Web runtime assets.
+
+| Parameter | Location | Type | Required |
+| --- | --- | --- | --- |
+| `*` | path | `string` | true |
+
+| Status | Response type |
+| --- | --- |
+| 200 | `object` |
+| 404 | `object` |
+### POST /api/v1/jsplugins/storage/cleanup
+
+Clean up plugin storage.
+
+| Status | Response type |
+| --- | --- |
+| 200 | `object` |
+| 500 | `ErrorResponse` |

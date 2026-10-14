@@ -19,7 +19,8 @@ The product UI screenshots shown on the documentation site's home page (landing 
 
    ```bash
    cd docs && npm install
-   # If your system has no Chrome, use Chromium instead: npx playwright install chromium
+   # To use Playwright Chromium, install it and change launch({ channel: "chrome" }) to launch()
+   npx playwright install chromium
    ```
 
 ## Running
@@ -51,7 +52,7 @@ Each page is captured in both **light + dark** variants; the landing page compon
 | `settings-{desktop,mobile}` | Settings |
 | `player-mobile` | Immersive full-screen player (only mobile has the full-screen Now Playing) |
 
-- Light / dark is switched by injecting the `flutter.theme_mode` storage item, and each is captured once.
+- Switch light/dark using `theme_mode` in the server `/settings/user-preferences` endpoint and synchronize local `flutter.theme_mode`. Restore the original server preference after capture.
 - Desktop viewport `1440×900`, device pixel ratio `1.5` (about 2160px wide); mobile viewport `390×844`, device pixel ratio `2` (about 780px wide).
 - The landing page components use CSS to wrap desktop images in a "browser window frame" (`BrowserFrame.vue`) and mobile images in a "phone shell" (`DeviceFrame.vue`), and automatically load the `-dark` variant based on `isDark`, so the script only needs to store the **clean raw screenshots**.
 
@@ -62,7 +63,7 @@ The frontend is **Flutter Web (canvas-rendered)**. There are no regular DOM form
 1. **Coordinate + keyboard login**: After Flutter's first frame renders, it clicks the username / password fields according to the login page layout and types with the keyboard, then clicks the login button. The coordinates are consolidated in the `LOGIN` constant at the top of the script; if the login page is redesigned, they need corresponding fine-tuning.
 2. **Reusing the login state**: After a successful login, `context.storageState()` saves the login info (the `flutter.access_token` etc. in `localStorage`) and injects it into new contexts for the multiple desktop / mobile viewports, **so there's no need to align login coordinates separately for each viewport**.
 3. **Direct hash-route navigation**: Each page is navigated directly by routes like `#/library`, `#/playlists/1` for the screenshot (routes taken from `songloft-player`'s `AppRoutes`).
-4. **Light / dark sets**: A copy of the login state is made, `flutter.theme_mode` is changed to `dark`, and all pages are captured again (the dark files carry the `-dark` suffix).
+4. **Light / dark sets**: Update the server `theme_mode`, copy the login state with a matching `flutter.theme_mode`, and capture all pages again (the dark files carry the `-dark` suffix).
 5. **Immersive player**: On mobile, it enters the playlist detail, taps the first song to start playing, then taps the bottom mini-player to expand to full screen and takes the screenshot.
 
 ## Where to Change Things When Adjustments Are Needed

@@ -1,16 +1,16 @@
 # Choosing a client
 
-Songloft offers Flutter and Lynx players connecting to the same backend. Their packages and capability scopes are maintained separately.
+Songloft offers Flutter, Lynx, Electron desktop, and TV clients connecting to the same backend. Their packages and capability scopes are maintained separately.
 
-| Item                  | Flutter                                               | Lynx (preview)                                            |
-| --------------------- | ----------------------------------------------------- | --------------------------------------------------------- |
-| Technology            | Flutter / Dart                                        | ReactLynx / TypeScript                                    |
-| Platforms             | Android, iOS, macOS, Windows, Linux, Web              | Android, iOS, HarmonyOS, Web                              |
-| Bundled local backend | Supported on mobile and desktop                       | Not implemented; all platforms require a separate server  |
-| Desktop client        | Supported                                             | Not implemented                                           |
-| Client updates        | See Flutter's client guides                           | Download and install again; no in-app update checks yet   |
-| Core features         | Playback, library, playlists, lyrics, plugins, themes | Implemented, with native device regression still required |
-| License               | Apache-2.0                                            | Apache-2.0                                                |
+| Item | Flutter | Lynx (preview) | Songloft Desktop | Songloft TV |
+| --- | --- | --- | --- | --- |
+| Technology | Flutter / Dart | ReactLynx / TypeScript | Electron | Kotlin / Jetpack Compose for TV |
+| Platforms | Android, iOS, macOS, Windows, Linux, Web | Android, iOS, HarmonyOS, Web | Windows, macOS, Linux | Android 5.0+ TVs / boxes and landscape large-screen devices |
+| Bundled local backend | Supported on mobile and desktop | Not implemented; requires a separate server | Not implemented; requires a separate server | Not implemented; requires a separate server |
+| Desktop client | Supported | Not implemented | Dedicated desktop client | No desktop edition |
+| Client updates | See Flutter's client guides | Download and install again; no in-app update checks yet | See the Electron repository instructions | Update checks in settings |
+| Core features | Playback, library, playlists, lyrics, plugins, themes | Implemented, with native device regression still required | Library, playlists, lyrics, plugins, desktop integration | Remote navigation, music / MV, lyrics, karaoke, QR song requests |
+| License | Apache-2.0 | Apache-2.0 | Apache-2.0 | Apache-2.0 |
 
 ## Flutter
 
@@ -39,14 +39,26 @@ Releases include `version.json` and `checksums.txt`. Downloadable dev packages a
 
 Standalone Web shows a server-address field; embedded uses the same-origin server and hides that field. Both require suitable MIME types and isolation headers. Replacing Go's embedded Flutter assets does not automatically satisfy the Lynx host contract. See [Web deployment](player-lynx/web-deployment.md); subpath deployment is unverified.
 
+## Songloft Desktop (Electron desktop client)
+
+[Songloft Desktop](https://github.com/songloft-org/songloft-desktop) is Songloft's official Electron desktop client for Windows, macOS, and Linux. It requires a Songloft server and does not include a bundled local backend.
+
+- [Downloads and installers](https://github.com/songloft-org/songloft-desktop/releases/latest): see the repository instructions and Release assets for installation on each platform.
+- [Project documentation and source](https://github.com/songloft-org/songloft-desktop) · [Report issues](https://github.com/songloft-org/songloft-desktop/issues).
+
+## Songloft TV (TV / large-screen client)
+
+[Songloft TV](https://github.com/songloft-org/songloft-tv) uses Kotlin + Jetpack Compose for TV on Android 5.0 (API 21) or later TVs, boxes, and landscape large-screen devices. It requires an existing Songloft server and does not include a bundled local backend.
+
+- [Stable APK downloads](https://github.com/songloft-org/songloft-tv/releases/latest) · [Development downloads](https://github.com/songloft-org/songloft-tv/releases/tag/dev).
+- [Build and installation (Chinese)](https://github.com/songloft-org/songloft-tv#构建) · [Source](https://github.com/songloft-org/songloft-tv) · [Report issues](https://github.com/songloft-org/songloft-tv/issues).
+- Supports remote D-Pad navigation and touch, QR server configuration, music / MV playback, original / backing track switching, and synchronized / word-timed lyrics.
+- Provides karaoke and QR song requests, favorite songs / radio, playback cache, background playback, and update checks in settings.
+- Playback statistics require the server-side statistics plugin; the corresponding page is hidden when it is absent.
+
+See the TV repository for device compatibility and installation requirements, and its [disclaimer (Chinese)](https://github.com/songloft-org/songloft-tv#声明与免责) for in-car usage limits.
+
 ## Third-party clients
-
-### Songloft Desktop (community desktop client)
-
-[Songloft Desktop](https://github.com/edwinhuish/songloft-desktop) is an Electron desktop client independently maintained by edwinhuish for Windows, macOS, and Linux. It requires an existing Songloft server.
-
-- [Downloads and installers](https://github.com/edwinhuish/songloft-desktop/releases/latest); see the project's instructions for available packages and installation steps on each platform.
-- [Project documentation and source](https://github.com/edwinhuish/songloft-desktop); report client issues to that project.
 
 See [Third-party Clients in the quick start](quick-start.md#🌐-third-party-clients) for more community clients.
 

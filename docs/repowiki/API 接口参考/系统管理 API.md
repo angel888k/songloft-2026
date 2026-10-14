@@ -354,3 +354,58 @@
 ---
 
 **章节来源：** `internal/handlers/health.go` / `internal/handlers/version.go` / `internal/handlers/upgrade.go` / `internal/handlers/proxy.go` / `internal/app/routers.go` / `internal/models/models.go`
+
+## 当前源码补充接口
+
+以下接口补齐旧版列表遗漏。请求字段、响应模型与副作用以对应 handler 和 Swagger 为准。
+
+### GET /api/v1/logs/export
+
+导出后端日志。
+
+| 状态 | 响应类型 |
+| --- | --- |
+| 200 | `file` |
+| 500 | `object` |
+### GET /api/v1/proxy/transcode
+
+代理并实时转码外部音频。
+
+| 参数 | 位置 | 类型 | 必填 |
+| --- | --- | --- | --- |
+| `url` | query | `string` | true |
+| `format` | query | `string` | false |
+| `bitrate` | query | `integer` | false |
+| `duration` | query | `number` | false |
+| `user_agent` | query | `string` | false |
+| `referer` | query | `string` | false |
+
+| 状态 | 响应类型 |
+| --- | --- |
+| 200 | `file` |
+| 400 | `object` |
+| 403 | `object` |
+| 503 | `object` |
+### POST /api/v1/upgrade/upload
+
+上传二进制文件升级。
+
+| 参数 | 位置 | 类型 | 必填 |
+| --- | --- | --- | --- |
+| `file` | formData | `file` | true |
+
+| 状态 | 响应类型 |
+| --- | --- |
+| 200 | `UploadedBinaryInfo` |
+| 400 | `ErrorResponse` |
+| 403 | `ErrorResponse` |
+| 500 | `ErrorResponse` |
+### POST /api/v1/upgrade/upload/confirm
+
+确认执行上传升级。
+
+| 状态 | 响应类型 |
+| --- | --- |
+| 200 | `SuccessResponse` |
+| 400 | `ErrorResponse` |
+| 403 | `ErrorResponse` |

@@ -347,6 +347,32 @@ export const INSTALL: InstallMethod[] = [
     ],
   },
   {
+    id: 'desktop',
+    label: { zh: 'Electron 桌面客户端', en: 'Electron Desktop Client' },
+    tagline: { zh: '官方客户端 · Windows / macOS / Linux', en: 'Official client · Windows / macOS / Linux' },
+    icon: 'monitor',
+    kind: 'external',
+    note: {
+      zh: 'Songloft Desktop 需连接 Songloft 服务端，不含 Bundle 本地后端。各平台安装方式以仓库说明和 Release 产物为准。',
+      en: 'Songloft Desktop requires a Songloft server and does not include a bundled local backend. See the repository instructions and Release assets for installation on each platform.',
+    },
+    external: [
+      {
+        label: { zh: '下载桌面客户端', en: 'Download desktop client' },
+        url: 'https://github.com/songloft-org/songloft-desktop/releases/latest',
+        primary: true,
+      },
+      {
+        label: { zh: '源码仓库', en: 'Source repository' },
+        url: 'https://github.com/songloft-org/songloft-desktop',
+      },
+      {
+        label: { zh: '问题反馈', en: 'Report issues' },
+        url: 'https://github.com/songloft-org/songloft-desktop/issues',
+      },
+    ],
+  },
+  {
     id: 'tv',
     label: { zh: 'TV 客户端', en: 'TV Client' },
     tagline: { zh: 'Android TV · 遥控器操作', en: 'Android TV · remote-friendly' },

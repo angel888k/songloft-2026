@@ -313,15 +313,18 @@ Songloft 有两类配置接口，用户可见的功能开关一律走业务端�
 }
 ```
 
-共 14 个视图 key，分三组：
+共 18 个视图 key，分三组：
 
 - **歌曲组**：`all`(全部) / `local`(本地) / `remote`(网络) / `radio`(电台)
-- **分类组**：`artist`(歌手) / `album`(专辑) / `genre`(流派) / `year`(年份) / `decade`(年代) / `language`(语种) / `style`(风格)
-- **歌单组**：`playlist`(全部歌单) / `playlist_normal`(普通歌单) / `playlist_radio`(电台歌单)
+- **分类组**：`folder`(文件夹) / `artist`(歌手) / `album`(专辑) / `genre`(流派) / `year`(年份) / `decade`(年代) / `language`(语种) / `style`(风格) / `tag`(自定义标签)
+- **歌单组**：`playlist`(全部歌单) / `playlist_normal`(普通歌单) / `playlist_radio`(电台歌单) / `playlist_remote`(含网络歌曲) / `playlist_local`(含本地歌曲)
 
-未配置时返回默认（全部可见、默认顺序）。返回始终包含完整 14 项：非法 key 被剔除，缺失 key 按默认顺序补到末尾（`visible=true`）。
+未配置时返回默认（全部可见、默认顺序）。返回始终包含完整 18 项：非法 key 被剔除，缺失 key 按默认顺序补到末尾（`visible=true`）。
 
 - **400**: 非法或重复的视图 key | **500**: 保存失败
+
+
+`playlist_remote` / `playlist_local` 使用 `song_source` 按歌单内歌曲来源筛选，不是新增歌单 `type`。
 
 ### 3.16 用户偏好设置
 
@@ -372,3 +375,157 @@ Songloft 有两类配置接口，用户可见的功能开关一律走业务端�
 未配置时返回默认值（关闭 + flat 预设 + 全 0）。
 
 - **400**: `bands` 不是 10 个元素 / 某段超出 -12 ~ +12 范围 | **500**: 保存失败
+
+## 当前源码补充接口
+
+以下接口补齐旧版列表遗漏。请求字段、响应模型与副作用以对应 handler 和 Swagger 为准。
+
+### GET /api/v1/settings/github-discovery-token
+
+获取 GitHub 发现 Token。
+
+| 状态 | 响应类型 |
+| --- | --- |
+| 200 | `githubDiscoveryTokenSetting` |
+| 401 | `ErrorResponse` |
+| 500 | `ErrorResponse` |
+
+### PUT /api/v1/settings/github-discovery-token
+
+保存 GitHub 发现 Token。
+
+| 参数 | 位置 | 类型 | 必填 |
+| --- | --- | --- | --- |
+| `request` | body | `githubDiscoveryTokenSetting` | true |
+
+| 状态 | 响应类型 |
+| --- | --- |
+| 200 | `githubDiscoveryTokenSetting` |
+| 400 | `ErrorResponse` |
+| 401 | `ErrorResponse` |
+| 500 | `ErrorResponse` |
+### GET /api/v1/settings/plugin-order
+
+获取主页插件网格排序。
+
+| 状态 | 响应类型 |
+| --- | --- |
+| 200 | `pluginOrderSetting` |
+
+### PUT /api/v1/settings/plugin-order
+
+保存主页插件网格排序。
+
+| 参数 | 位置 | 类型 | 必填 |
+| --- | --- | --- | --- |
+| `request` | body | `pluginOrderSetting` | true |
+
+| 状态 | 响应类型 |
+| --- | --- |
+| 200 | `pluginOrderSetting` |
+| 400 | `ErrorResponse` |
+| 500 | `ErrorResponse` |
+### GET /api/v1/settings/proxy-private-allowlist
+
+获取私网代理白名单。
+
+| 状态 | 响应类型 |
+| --- | --- |
+| 200 | `proxyAllowlistSettingRequest` |
+
+### PUT /api/v1/settings/proxy-private-allowlist
+
+更新私网代理白名单。
+
+| 参数 | 位置 | 类型 | 必填 |
+| --- | --- | --- | --- |
+| `request` | body | `proxyAllowlistSettingRequest` | true |
+
+| 状态 | 响应类型 |
+| --- | --- |
+| 200 | `proxyAllowlistSettingRequest` |
+| 400 | `object` |
+| 500 | `object` |
+### GET /api/v1/settings/scan-auto-fingerprint
+
+获取「扫描后自动计算音频指纹」开关。
+
+| 状态 | 响应类型 |
+| --- | --- |
+| 200 | `object` |
+
+### PUT /api/v1/settings/scan-auto-fingerprint
+
+更新「扫描后自动计算音频指纹」开关。
+
+| 参数 | 位置 | 类型 | 必填 |
+| --- | --- | --- | --- |
+| `request` | body | `scanAutoFingerprintRequest` | true |
+
+| 状态 | 响应类型 |
+| --- | --- |
+| 200 | `object` |
+| 400 | `object` |
+| 500 | `object` |
+### GET /api/v1/settings/tag-sync-to-file
+
+获取标签同步到文件开关。
+
+| 状态 | 响应类型 |
+| --- | --- |
+| 200 | `object` |
+
+### PUT /api/v1/settings/tag-sync-to-file
+
+保存标签同步到文件开关。
+
+| 参数 | 位置 | 类型 | 必填 |
+| --- | --- | --- | --- |
+| `request` | body | `object` | true |
+
+| 状态 | 响应类型 |
+| --- | --- |
+| 200 | `object` |
+| 400 | `object` |
+| 500 | `object` |
+### GET /api/v1/settings/theme-catalog-url
+
+获取主题目录 URL。
+
+| 状态 | 响应类型 |
+| --- | --- |
+| 200 | `object` |
+
+### PUT /api/v1/settings/theme-catalog-url
+
+更新主题目录 URL。
+
+| 参数 | 位置 | 类型 | 必填 |
+| --- | --- | --- | --- |
+| `request` | body | `object` | true |
+
+| 状态 | 响应类型 |
+| --- | --- |
+| 200 | `object` |
+| 400 | `object` |
+### GET /api/v1/settings/volume-normalize
+
+获取音量均衡配置。
+
+| 状态 | 响应类型 |
+| --- | --- |
+| 200 | `volumeNormalizeRequest` |
+
+### PUT /api/v1/settings/volume-normalize
+
+更新音量均衡配置。
+
+| 参数 | 位置 | 类型 | 必填 |
+| --- | --- | --- | --- |
+| `request` | body | `volumeNormalizeRequest` | true |
+
+| 状态 | 响应类型 |
+| --- | --- |
+| 200 | `volumeNormalizeRequest` |
+| 400 | `object` |
+| 500 | `object` |
