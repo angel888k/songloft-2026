@@ -18,6 +18,15 @@ Evidence-backed lessons for the parent and public host contracts; see the [AI wo
 - Done right: after the user explicitly requested the reply, the release update was [posted and read back](https://github.com/songloft-org/songloft/issues/495#issuecomment-6147071915), stating the available version, actual validation, and device/duration acceptance limits. Subsequent practical validation of the new “proactive draft → approval → posting” workflow remains pending; the late reply does not establish that complete flow.
 - Seen 1× (2026-10-13). Status: incorporated immediately at the user's explicit request into [Linked Issue Replies](docs/en/ai-development.md#linked-issue-replies), without waiting for the occurrence threshold.
 
+### TEST-001: Check background file writes when temporary directory cleanup fails
+
+- Scope: Go plugin lifecycle, asynchronous bytecode caching, and test temporary directories.
+- Rule: do not dismiss `TempDir RemoveAll: directory not empty` as an environment problem or hide it with a delay. Check the ordering of test completion and background disk writes. A successful rerun establishes that attempt's result, not a lifecycle-race fix.
+- Failure: on 2026-10-14, the parent gitlink commit [`405e8a0`](https://github.com/songloft-org/songloft/commit/405e8a0f2697bac53c3311567fdca025256335df) for songloft-org/songloft#518 failed during `TestManager_ReloadPlugin` cleanup in the [first CI attempt](https://github.com/songloft-org/songloft/actions/runs/38526078645/attempts/1). Logs show manager closure before `bytecode cached`. This batch changed client gitlinks without changing Go source.
+- Investigation and handling: `JSService.Load` compiles and writes bytecode asynchronously, and shutdown does not join that disk write. Evidence points to a race between background writes and temporary directory cleanup. At the same SHA, local `CGO_ENABLED=0 go test -tags dev,lite ./internal/jsplugin -run '^TestManager_ReloadPlugin$' -count=30` passed; rerunning failed jobs passed Quality. Logs are in `/tmp/songloft-518-{parent-ci-failed,reload-repeat}.log`. This batch does not fix that background-task lifecycle; a deterministic regression and shutdown wait remain follow-up work.
+- Done right: retain the first failure, actual SHA, and rerun result. A lifecycle fix should verify that no cache writes occur after shutdown returns, then clean the temporary directory. Do not treat one successful rerun as proof of repair.
+- Seen 1× (2026-10-14). Status: lesson; lifecycle repair remains pending.
+
 ## Entry Format
 
 ```text
