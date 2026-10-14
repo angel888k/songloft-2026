@@ -10,6 +10,16 @@ Evidence-backed lessons for the parent and public host contracts; see the [AI wo
 
 ## Entries
 
+### PLUG-001: Check version comparison at every plugin update entry
+
+- Scope: plugin manifest validation, server update checks/install, Flutter/Lynx catalogs, and GitHub discovery.
+- Evidence: on 2026-10-14, preparing a patch for [songloft-org/songloft#495](https://github.com/songloft-org/songloft/issues/495), checking only the builder and host led to a proposed `v2026.10.14.1`. The user's request to inspect the complete update chain exposed inconsistent entry rules. At parent `6b050ff34c52f8140063e373319692814b030ec0`, builder/host manifest patterns accept four components and `CompareVersion` compares each component. Real Repository + HTTP fixture checks successfully install `2026.10.14 → 2026.10.14.1` through `CheckUpdate` and non-forced `DownloadUpdate`. Published server v2.13.1 uses the same comparison implementation.
+- Limitation: Flutter `a0b2ae17194dd0a1acdaa7c0050ca4681e119c07` and Lynx `9a92929f5f33efdefecc1a01632cb8270ebdc59b` catalog comparisons recognize a fourth component, but GitHub discovery uses `comparePluginVersions` / `compareStableVersions`, which strictly accept three. Four-component comparisons return unknown and omit update prompts. This does not mean every plugin update fails or that every entry supports the format. Tags may start with `v`; manifest `version` must omit it.
+- Done right: execute actual Go manifest/check/download/install paths and both clients' source comparison functions. Three-component `2026.10.15` is recognized as newer by these entries and is used for this release without changing native application update protocols. Evidence: `/tmp/songloft-495-20261014/version-upgrade-probe.log`, `version-probe_test.go`, and `client-version-probe.dart`. The temporary Go test is removed; product code is unchanged.
+- Rule: check every relevant update entry before introducing a version format. Distinguish accepted packages from UI update prompts; date/semver wording is not actual validation. Do not relax native application update protocols merely to change plugin comparison.
+- Not run: physical client UI interactions with four-component versions and the complete historical client release matrix. Four-component acceptance is behavior at some current entries, not a unified version contract.
+- Seen 1× (2026-10-14). Status: lesson; a unified plugin version contract awaits separate work.
+
 ### FLOW-001: Proactively deliver an Issue reply draft for approval after pushing its fix
 
 - Scope: development delivery and Issue communication in the parent and child repositories.
