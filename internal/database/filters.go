@@ -235,6 +235,9 @@ func applyPlaylistSongOrder(sb sq.SelectBuilder, orderBy, order string) sq.Selec
 	if strings.EqualFold(order, "DESC") {
 		dir = "DESC"
 	}
+	if col == "s.title" || col == "s.artist" || col == "s.album" {
+		col = "songloft_text_sort_key(" + col + ")"
+	}
 	// 二级排序键：主排序列存在等值行时（如批量加入歌单的 ps.added_at 全相同），
 	// 以 ps.position 同方向兜底，保证 ASC/DESC 总能产生可见的不同顺序
 	// （songloft-org/songloft#431）。主排序已是 ps.position 时二级键冗余但无害。

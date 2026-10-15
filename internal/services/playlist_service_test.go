@@ -2,8 +2,10 @@ package services
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 	"time"
 
@@ -446,6 +448,45 @@ func TestPlaylistServiceSortSongs(t *testing.T) {
 			t.Error("SortSongs() should return error for invalid action")
 		}
 	})
+}
+
+func TestPlaylistServiceSortSongsPinyin(t *testing.T) {
+	env := newPlaylistTestEnv(t)
+	service := env.newService()
+	ctx := context.Background()
+	playlist := &models.Playlist{Type: models.PlaylistTypeNormal, Name: "pinyin"}
+	if err := service.Create(ctx, playlist); err != nil {
+		t.Fatal(err)
+	}
+	for i, title := range []string{"夜曲", "beta", "阿尔法", "apple", "北京"} {
+		song := &models.Song{Type: models.TypeLocal, Title: title, FilePath: fmt.Sprintf("/pinyin/%d.mp3", i)}
+		if err := env.songs.Create(ctx, song); err != nil {
+			t.Fatal(err)
+		}
+		if err := service.AddSong(ctx, playlist.ID, song.ID); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, action := range []string{"name_asc", "name_desc"} {
+		if err := service.SortSongs(ctx, playlist.ID, action); err != nil {
+			t.Fatal(err)
+		}
+		songs, err := service.GetSongs(ctx, playlist.ID, database.PlaylistSongFilter{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		var got []string
+		for _, song := range songs {
+			got = append(got, song.Title)
+		}
+		want := []string{"阿尔法", "apple", "北京", "beta", "夜曲"}
+		if action == "name_desc" {
+			slices.Reverse(want)
+		}
+		if !slices.Equal(got, want) {
+			t.Errorf("%s persisted %v, want %v", action, got, want)
+		}
+	}
 }
 
 func TestPlaylistServiceSortSongsBuiltIn(t *testing.T) {

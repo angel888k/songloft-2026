@@ -10,6 +10,16 @@
 
 ## 条目
 
+### SORT-001：歌单文字排序必须在分页前统一生成拼音键
+
+- 范围：歌单歌曲分页、播放定位 ID 列表及永久名称排序，songloft-org/songloft#524。
+- 失败证据：2026-10-15，基线 `cffffe39a05f32df6651e3e47acefb4692b8b533` 的 `applyPlaylistSongOrder` 直接按 SQLite 文本编码排列，中文首字母跳动、英文大小写分组；新回归在旧实现下的 title/artist/album 双方向均失败。隔离旧 filters.go 后，永久 name_asc/name_desc 回归也因错误顺序失败，日志 `/tmp/songloft-524/{before,permanent-before}.log`。
+- 修复：本次工作树注册确定性 SQLite 拼音键函数，保留非中文字符、忽略大小写及首尾空白，由同一个排序构造器在 LIMIT/OFFSET 前使用；等值键继续按 position 同方向排序。多音字使用字典默认读音，不承诺词组语境识别。两个客户端将「标题」菜单明确为「歌曲名称」。
+- Done right：真实内存 Repository 回归覆盖简繁中文/英文混排、大小写与同音等值、四页拼接、搜索、数字/自定义顺序；文件数据库双连接验证函数注册。后端完整测试/vet、定向 race 和 8 组真实 HTTP 场景通过；30,000 首合成曲目的中间页约 344ms、完整 ID 约 263ms，二者顺序一致（单次本机采样，非性能保证）。证据 `/tmp/songloft-524/{backend-focused,race,perf}.log`、`api-result.json`。
+- Seen 1× (2026-10-15)。状态：经验；Android 原机验收与发布状态另行核对。
+
+双客户端中英文 390px 浏览器实测名称升降序、艺术家排序、后端偏好保存及重新进入恢复通过，页面异常为零；证据 `/tmp/songloft-524/{flutter-browser,lynx-browser,validation}.json`。浏览器验证不替代 Android 真机验收。
+
 ### PLUG-001：插件版本兼容性需要核对更新入口的比较规则
 
 - 范围：插件清单校验、服务端更新检查与安装、Flutter/Lynx 插件商店及 GitHub 发现页。

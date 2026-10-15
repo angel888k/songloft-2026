@@ -10,6 +10,16 @@ Evidence-backed lessons for the parent and public host contracts; see the [AI wo
 
 ## Entries
 
+### SORT-001: Generate shared pinyin keys before playlist pagination
+
+- Scope: playlist song pages, playback-position ID lists and permanent name sorting, songloft-org/songloft#524.
+- Failure evidence: on 2026-10-15, baseline `cffffe39a05f32df6651e3e47acefb4692b8b533` ordered text directly in SQLite's binary order, producing jumps between Chinese initials and grouping English by case. New title/artist/album regressions fail in both directions on the old implementation. An isolated overlay of the old filters.go also fails the permanent name_asc/name_desc regressions. Logs: `/tmp/songloft-524/{before,permanent-before}.log`.
+- Fix: this working tree registers a deterministic SQLite pinyin-key function that preserves non-Chinese characters and ignores case and surrounding whitespace. The shared order builder uses it before LIMIT/OFFSET, retaining same-direction position ties. Polyphones use dictionary default readings, without contextual phrase recognition. Both clients rename the playlist “Title” menu to “Song name”.
+- Done right: real in-memory Repository regressions cover mixed simplified/traditional Chinese and English, case/homophone ties, four concatenated pages, search, numeric/custom order; two file-database connections verify function registration. Full backend tests/vet, focused race tests and eight real HTTP scenarios pass. A single local sample of 30,000 synthetic songs takes about 344ms for a middle page and 263ms for all IDs, with matching order; this is not a performance guarantee. Evidence: `/tmp/songloft-524/{backend-focused,race,perf}.log`, `api-result.json`.
+- Seen 1× (2026-10-15). Status: lesson; Android hardware acceptance and release status require separate verification.
+
+Both clients pass Chinese/English 390px browser checks for name order in both directions, artist sorting, backend preference persistence and re-entry restoration, with no page exceptions. Evidence: `/tmp/songloft-524/{flutter-browser,lynx-browser,validation}.json`. Browser checks do not replace Android hardware acceptance.
+
 ### PLUG-001: Check version comparison at every plugin update entry
 
 - Scope: plugin manifest validation, server update checks/install, Flutter/Lynx catalogs, and GitHub discovery.

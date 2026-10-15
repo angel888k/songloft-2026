@@ -249,6 +249,7 @@ func (h *PlaylistHandler) UpdatePlaylist(w http.ResponseWriter, r *http.Request)
 // GetPlaylistSongIDs 返回歌单内全部歌曲 ID（有序、不分页）
 // @Summary 获取歌单歌曲 ID 列表
 // @Description 返回歌单内全部歌曲的 ID，不分页。sort/order 语义与 GET /playlists/{id}/songs 完全一致（同一套排序逻辑），省略时默认 position 升序。
+// @Description title（歌曲名称）/artist/album 按不区分大小写的拼音字母序排列，忽略首尾空白；中英文混排，多音字使用字典默认读音。排序键相同时按歌单 position 同方向排列。
 // @Description 用途：客户端需要知道「某首歌在歌单里排第几」时（如从播放历史里的某首歌接着往下播），用本端点拿到有序 ID 数组后取下标，即可直接作为 /playlists/{id}/songs 的 offset 使用（传相同的 sort/order），避免为此拉取全部歌曲对象。
 // @Description 形态与 GET /songs/ids 对齐。
 // @Tags 歌单管理
@@ -480,6 +481,7 @@ func (h *PlaylistHandler) BatchDeletePlaylists(w http.ResponseWriter, r *http.Re
 // GetPlaylistSongs 获取歌单中的歌曲
 // @Summary 获取歌单中的歌曲
 // @Description 获取指定歌单中的歌曲，支持分页、排序和搜索
+// @Description title 为歌曲名称；title/artist/album 按不区分大小写的拼音字母序排列，忽略首尾空白；中英文混排，多音字使用字典默认读音。先对全部匹配歌曲排序再分页，排序键相同时按歌单 position 同方向排列。
 // @Tags 歌单管理
 // @Accept json
 // @Produce json
@@ -676,6 +678,7 @@ func (h *PlaylistHandler) ReorderPlaylistSongs(w http.ResponseWriter, r *http.Re
 // @Summary 服务端排序歌单内歌曲
 // @Description 根据 action 参数对歌单内歌曲进行永久排序（更新 position）。
 // @Description action 取值：name_asc（按名称 A→Z）、name_desc（按名称 Z→A）、number_prefix（按标题数字前缀）、shuffle（随机打乱）。
+// @Description name_asc/name_desc 使用与 title 视图排序相同的歌曲名称拼音字母序，忽略大小写和首尾空白，多音字使用字典默认读音。
 // @Description 与 /playlists/{id}/songs/reorder 不同，本端点无需客户端传入完整歌曲 ID 列表，排序由服务端完成。
 // @Tags 歌单管理
 // @Accept json
