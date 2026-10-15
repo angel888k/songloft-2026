@@ -68,6 +68,14 @@
 - 边界：构建包体积警告仍存在；编辑配置触发插件热重启时遇到 MiniSearch 重复索引，冷启动验证正常，本次未修复热重启。Not run：单元测试和类型检查，本次采用构建及真实运行验证。
 - Seen 1× (2026-10-15)。状态：经验；扫描范围修复在本次未提交工作树。
 
+### RELEASE-001：跨仓库发布必须按「子仓库 tag 先推送、gitlink 后落地、父仓库最后」的顺序
+
+- 范围：`scripts/release-all.sh`、三个仓库的 `bump-version.sh` 统一契约、父仓库 gitlink 提交。
+- 规则：父仓库 bump 脚本要求干净工作树，因此两个子模块指针必须先用独立 commit 落地；gitlink commit 必须用 pathspec 限定（`git commit -m ... -- clients/player clients/player-lynx`），否则 staged/无关改动会被裹带。链式解析依赖「stdout 末行 = v<版本>、日志走 stderr」的固定契约。
+- 证据：2026-10-15，基线 `9d008b8`。旧版三个脚本参数与行为各异（Flutter tag 冲突可覆盖、父仓库无预检），无法安全编排；统一为 Lynx 严格契约后由 `scripts/tests/release-all.test.mjs` 夹具（本地 bare remote + stub）锁定顺序、脏树中止、失败即停、dry-run 零写入与 gitlink 隔离；`scripts/tests/bump-version.test.mjs` 覆盖预检与 `--no-push` 本地路径。Lynx 既有 `pnpm run test:release` 77 项通过。
+- Done right：真实仓库 `--dry-run` 验证三脚本计划输出与预检（脏子模块在调用任何发布脚本前被拦截）。推送 tag 触发各 CI 属发布动作，另行授权；本条不证明真实发布链路。
+- Seen 1× (2026-10-15)。状态：经验。
+
 ## 条目格式
 
 ```text

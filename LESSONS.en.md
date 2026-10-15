@@ -68,6 +68,14 @@ Both clients pass Chinese/English 390px browser checks for name order in both di
 - Limits: the chunk-size warning remains. Config edits triggered a plugin hot-restart failure with duplicate MiniSearch indexes; cold-start verification passed, and this change does not fix hot restart. Not run: unit tests and type checks; validation used builds and actual runtime behavior.
 - Seen 1× (2026-10-15). Status: lesson; scan-scope fix is in this uncommitted worktree.
 
+### RELEASE-001: Cross-repo releases must push child tags first, land gitlinks second, and release the parent last
+
+- Scope: `scripts/release-all.sh`, the unified `bump-version.sh` contract across three repos, and parent gitlink commits.
+- Rule: the parent bump script requires a clean worktree, so both submodule pointers must land in a dedicated commit first; that commit must be pathspec-limited (`git commit -m ... -- clients/player clients/player-lynx`) or staged/unrelated changes get swept in. Chain parsing depends on the fixed contract "last stdout line = v<version>, logs on stderr".
+- Evidence: on 2026-10-15, baseline `9d008b8`. The three legacy scripts differed (Flutter allowed tag overwrite, the parent had no preflight) and could not be orchestrated safely. After aligning all three to the Lynx strict contract, `scripts/tests/release-all.test.mjs` (local bare remotes + stubs) locks the ordering, dirty-tree abort, stop-on-failure, dry-run zero writes, and gitlink isolation; `scripts/tests/bump-version.test.mjs` covers preflight and the `--no-push` local path. Lynx's existing `pnpm run test:release` passes 77 tests.
+- Done right: real-repo `--dry-run` verified all three plan outputs and the preflight (a dirty submodule is rejected before any release script runs). Pushing tags triggers each CI and is a separate release action; this entry does not establish the real publication chain.
+- Seen 1× (2026-10-15). Status: lesson.
+
 ## Entry Format
 
 ```text
