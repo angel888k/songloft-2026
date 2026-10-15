@@ -6,6 +6,32 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [v2.13.3] - 2026-10-15
+### :sparkles: New Features
+- [`600fe6d`](https://github.com/songloft-org/songloft/commit/600fe6dff90d908c9b959c53742b4cf3199f7891) - **player**: 同步歌词背景与六种内置配色（Ref [#523](https://github.com/songloft-org/songloft/pull/523)） *(commit by [@hanxi](https://github.com/hanxi))*
+- [`c94e83d`](https://github.com/songloft-org/songloft/commit/c94e83d9365d12bb7436541d356f94e854153985) - **scripts**: 统一三仓库发布契约并新增一键发布入口 *(commit by [@hanxi](https://github.com/hanxi))*
+
+### :bug: Bug Fixes
+- [`9e380ed`](https://github.com/songloft-org/songloft/commit/9e380ed70f0445742141c36a07fca4ba709108a0) - **jsplugin**: 停止插件时等待字节码缓存写入完成 *(commit by [@hanxi](https://github.com/hanxi))*
+- [`ca01cdf`](https://github.com/songloft-org/songloft/commit/ca01cdface852acdf31a32b992a5b54b2e44d73f) - **playlist**: 修正歌单拼音排序 [#524](https://github.com/songloft-org/songloft/pull/524) *(commit by [@hanxi](https://github.com/hanxi))*
+- [`bafbe5c`](https://github.com/songloft-org/songloft/commit/bafbe5cb8f9123de5724e9e7573bcc5d37914354) - **miot**: 同步整点报时续播加速插件 v2026.10.15.7（Ref [#481](https://github.com/songloft-org/songloft/pull/481)） *(commit by [@hanxi](https://github.com/hanxi))*
+
+### :white_check_mark: Tests
+- [`cffffe3`](https://github.com/songloft-org/songloft/commit/cffffe39a05f32df6651e3e47acefb4692b8b533) - **jsplugin**: 用就绪握手稳定 WebSocket 并发回归（Ref [#520](https://github.com/songloft-org/songloft/pull/520)） *(commit by [@hanxi](https://github.com/hanxi))*
+
+### :memo: Documentation Changes
+- [`7d2ecb7`](https://github.com/songloft-org/songloft/commit/7d2ecb7197adceadbd87eb0f7d041675191c45cb) - **site**: 更新官方客户端入口并校正双语文档漂移 *(commit by [@hanxi](https://github.com/hanxi))*
+- [`9d008b8`](https://github.com/songloft-org/songloft/commit/9d008b8026abb56a2ee3aae29f71017460bcc1af) - **ai**: 精简规范入口并修复文档侧栏扫描范围 *(commit by [@hanxi](https://github.com/hanxi))*
+- [`91c23df`](https://github.com/songloft-org/songloft/commit/91c23df883b1e0f60575702b95196aabb539b63c) - **lessons**: 记录跨仓库统一发布契约与 gitlink 顺序经验 *(commit by [@hanxi](https://github.com/hanxi))*
+
+### :wrench: Chores
+- [`3bbea95`](https://github.com/songloft-org/songloft/commit/3bbea95fa9eba7519eed1e4e000123923d78e3b4) - **miot**: 同步 v2026.10.15.5 自动切歌修复 *(commit by [@hanxi](https://github.com/hanxi))*
+- [`8252cb7`](https://github.com/songloft-org/songloft/commit/8252cb762e8363283a860c3a091748a0aadb4b02) - **player**: 同步通知播放控件图标优化（Ref [#520](https://github.com/songloft-org/songloft/pull/520)） *(commit by [@hanxi](https://github.com/hanxi))*
+- [`9b5ffd9`](https://github.com/songloft-org/songloft/commit/9b5ffd96cdd156cfd12b170a6df02eff5aa0f5f1) - **plugins**: 同步 AI 失败提示与搜索空白回退修复（Ref [#522](https://github.com/songloft-org/songloft/pull/522)） *(commit by [@hanxi](https://github.com/hanxi))*
+- [`190c32c`](https://github.com/songloft-org/songloft/commit/190c32c1768a88678edea3de5b1b94c40108c95d) - **clients**: 同步 Flutter 与 Lynx 客户端发布版本 *(commit by [@hanxi](https://github.com/hanxi))*
+- [`a8ee182`](https://github.com/songloft-org/songloft/commit/a8ee182cd46d44c23065d09d94acc8d7052ac251) - release version 2.13.3 *(commit by [@hanxi](https://github.com/hanxi))*
+
+
 ## [v2.13.1] - 2026-10-08
 ### :sparkles: New Features
 - [`ed20db7`](https://github.com/songloft-org/songloft/commit/ed20db7f17b1e4142dc40ce4917bccf37b7619c5) - **jsplugin**: 支持 DLNA 接收所需的网络能力 *(commit by [@hanxi](https://github.com/hanxi))*
@@ -2115,3 +2141,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [v2.12.1]: https://github.com/songloft-org/songloft/compare/v2.12.0...v2.12.1
 [v2.13.0]: https://github.com/songloft-org/songloft/compare/v2.12.1...v2.13.0
 [v2.13.1]: https://github.com/songloft-org/songloft/compare/v2.13.0...v2.13.1
+[v2.13.3]: https://github.com/songloft-org/songloft/compare/v2.13.2...v2.13.3
