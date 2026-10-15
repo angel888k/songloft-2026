@@ -6,7 +6,8 @@
 
 | 脚本 | 作用 |
 |------|------|
-| `bump-version.sh` | 升级 `Makefile` 的 `VERSION` 与 `main.go` 的 Swagger `@version`，并 commit + tag + push（push tag 后由 release workflow 接管发布） |
+| `release-all.sh` | 一键发布：Flutter 客户端 → Lynx 客户端 → 提交子模块引用 → 父仓库后端（同一组参数透传给三个 bump 脚本） |
+| `bump-version.sh` | 升级 `Makefile` 的 `VERSION` 与 `main.go` 的 Swagger `@version`，commit + tag + 原子 push（push tag 后由 release workflow 接管发布）。与两个客户端仓库的 bump 脚本共享**统一发布契约** |
 | `submodule-update.sh` | 批量同步所有 git 子模块到最新 main |
 | `submodule-push.sh` | 批量推送所有有未推送 commit 的子模块到远程 |
 | `docker-entrypoint.sh` | Docker 镜像内的启动入口（不直接调用） |
@@ -32,8 +33,32 @@ Issues 完整分页、排除 PR、保留负责人，按仓库去重。未初始�
 
 ## 🚀 发布流程
 
+### 统一发布契约
+
+父仓库 `scripts/bump-version.sh`、`clients/player/scripts/bump-version.sh`、`clients/player-lynx/scripts/bump-version.sh` 三者参数与行为完全一致：
+
 ```bash
-# 1. 本地升版号 + 打 tag + push
+./scripts/bump-version.sh [major|minor|patch|release|X.Y.Z[-prerelease]] [--dry-run] [--yes] [--no-push]
+```
+
+- 预检先于任何写操作：`main` 分支、工作树干净、新版本高于当前版本、`v<新>` tag 本地与远程均不存在、本地包含 `origin/main`；任一失败即退出。
+- `--dry-run` 只打印计划（零写入零联网）；`--yes` 跳过交互确认；`--no-push` 只留本地 commit/tag。
+- commit → annotated tag → `git push --atomic` 一次推送 main 与该 tag。**已发布的 tag 永不覆盖**；失败后保留现场，不自动回滚。
+- stdout 末行输出 `v<版本>`（日志走 stderr），方便链式调用。
+
+### 一键发布（三个仓库）
+
+```bash
+./scripts/release-all.sh patch            # Flutter → Lynx → gitlink commit → 父仓库
+./scripts/release-all.sh 2.14.0 --dry-run # 预览全部计划，零写入
+```
+
+顺序约束：子仓库脚本各自 commit+tag+push（触发各自 CI）→ 父仓库用独立 commit 收录两个 gitlink（pathspec 限定，不裹带无关改动）→ 父仓库 bump 脚本（要求干净树，故 gitlink 必须先落地）推送后端 tag。失败即停、不回滚。
+
+### 仅发布父仓库
+
+```bash
+# 本地升版号 + 打 tag + push
 ./scripts/bump-version.sh patch        # x.y.z → x.y.(z+1)
 # 或：make bump TYPE=patch
 ```

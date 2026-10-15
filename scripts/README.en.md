@@ -5,8 +5,9 @@ This directory contains automation scripts for the Songloft backend, covering ve
 ## 📋 Script List
 
 | Script | Purpose |
-|------|------|
-| `bump-version.sh` | Bumps `VERSION` in `Makefile` and the Swagger `@version` in `main.go`, then commits + tags + pushes (once the tag is pushed, the release workflow takes over the release) |
+|--------|---------|
+| `release-all.sh` | One-command release: Flutter client → Lynx client → commit submodule pointers → parent backend (the same argument set is forwarded to all three bump scripts) |
+| `bump-version.sh` | Bumps `VERSION` in `Makefile` and the Swagger `@version` in `main.go`, then commits + tags + atomically pushes (once the tag is pushed, the release workflow takes over). Shares the **unified release contract** with both client repos' bump scripts |
 | `submodule-update.sh` | Batch-syncs all git submodules to the latest main |
 | `submodule-push.sh` | Batch-pushes all submodules that have unpushed commits to their remote |
 | `docker-entrypoint.sh` | Startup entrypoint inside the Docker image (not invoked directly) |
@@ -32,8 +33,32 @@ Issues are fully paginated, exclude PRs, retain assignees, and deduplicate repos
 
 ## 🚀 Release Workflow
 
+### Unified release contract
+
+The parent `scripts/bump-version.sh`, `clients/player/scripts/bump-version.sh`, and `clients/player-lynx/scripts/bump-version.sh` share identical parameters and behavior:
+
 ```bash
-# 1. Bump the version locally + create a tag + push
+./scripts/bump-version.sh [major|minor|patch|release|X.Y.Z[-prerelease]] [--dry-run] [--yes] [--no-push]
+```
+
+- Preflight runs before any write: on `main`, clean worktree, new version strictly newer, `v<new>` tag absent locally and remotely, local main contains `origin/main`; any failure exits immediately.
+- `--dry-run` prints the plan only (no writes, no network); `--yes` skips the interactive confirmation; `--no-push` keeps the commit/tag local.
+- commit → annotated tag → `git push --atomic` of main and that tag in one shot. **Published tags are never overwritten**; on failure the state is kept, with no automatic rollback.
+- The last stdout line prints `v<version>` (logs go to stderr) so the output chains cleanly.
+
+### One-command release (all three repos)
+
+```bash
+./scripts/release-all.sh patch            # Flutter → Lynx → gitlink commit → parent
+./scripts/release-all.sh 2.14.0 --dry-run # preview every plan with zero writes
+```
+
+Ordering constraint: each client script commits + tags + pushes (triggering its own CI) → the parent records both gitlinks in a dedicated commit (pathspec-limited, never sweeping unrelated changes) → the parent bump script (which requires a clean tree, hence the gitlink commit must land first) pushes the backend tag. Stops on first failure; no rollback.
+
+### Parent-only release
+
+```bash
+# Bump locally + create tag + push
 ./scripts/bump-version.sh patch        # x.y.z → x.y.(z+1)
 # or: make bump TYPE=patch
 ```
