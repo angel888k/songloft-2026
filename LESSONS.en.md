@@ -59,6 +59,15 @@ Both clients pass Chinese/English 390px browser checks for name order in both di
 - Done right: the corrected test passes 30 repetitions, `CGO_ENABLED=0 go test -tags dev,lite ./...` and `go vet -tags dev,lite ./...` pass. An isolated Go overlay removing close-event recording makes the test fail as expected with only `message:ping`. Baseline `9b5ffd96cdd156cfd12b170a6df02eff5aa0f5f1` plus this test working tree, Linux amd64 / Go 1.26.0; logs: `/tmp/songloft-520-followup/parent-{ci-failed,websocket-repeat,websocket-fixed,websocket-negative,tests-fixed,vet-fixed}.log`. Check the final commit and CI separately at the corresponding SHA.
 - Seen 1× (2026-10-15). Status: lesson.
 
+### DOCS-001: Fix the automatic sidebar scan root and explicitly exclude dependencies
+
+- Scope: automatic sidebars and LLM documentation indexes configured in `docs/.vitepress/config.mts`.
+- Evidence: on 2026-10-15, baseline `8252cb762e8363283a860c3a091748a0aadb4b02` used `path: '.'`; starting from the repository root included submodules and dependencies, returning 7,497,742 bytes from the live `/@siteData` endpoint. Building from `docs` also emitted `No matching file found for sidebar link` because `node_modules` was not excluded by default.
+- Rule and fix: plugin 1.7.0 uses `join(process.cwd(), path)`, not `resolve`, so an absolute path cannot be passed directly. Locate docs through the config's `import.meta.url`, then make that path relative to the current directory. Recursion only uses the explicit `ignoreList`, so include dependency, build, static-resource, and original default exclusions instead of suppressing warnings.
+- Done right: `node docs/node_modules/vitepress/bin/vitepress.js build docs` from the repository root produces zero missing-sidebar-link warnings; starting dev from `docs` reduces site data to 95,743 bytes. Docker Chrome exercised Chinese/English sidebars, language links, and the mobile menu against both dev and built output; all 66 captured sidebar links returned HTTP 200. Evidence: build logs, runtime data, browser records, and screenshots in `/tmp/songloft-sidebar-WVrz5I/`.
+- Limits: the chunk-size warning remains. Config edits triggered a plugin hot-restart failure with duplicate MiniSearch indexes; cold-start verification passed, and this change does not fix hot restart. Not run: unit tests and type checks; validation used builds and actual runtime behavior.
+- Seen 1× (2026-10-15). Status: lesson; scan-scope fix is in this uncommitted worktree.
+
 ## Entry Format
 
 ```text

@@ -1,3 +1,5 @@
+import { relative } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vitepress'
 import { withMermaid } from 'vitepress-plugin-mermaid'
 import AutoSidebar from 'vite-plugin-vitepress-auto-sidebar';
@@ -131,7 +133,12 @@ export default async () => {
     vite: {
       plugins: [
         AutoSidebar({
-          path: '.',
+          // 插件用 join(cwd, path) 拼接，需传相对路径而非绝对路径。
+          path: relative(process.cwd(), fileURLToPath(new URL('..', import.meta.url))),
+          ignoreList: [
+            'node_modules', '.vitepress', 'dist', 'build',
+            'public', 'scripts', 'components', 'assets',
+          ],
           collapsed: true,
           titleFromFile: true,
           ignoreIndexItem: true, // 首页 index.md（落地页）不进侧边栏

@@ -59,6 +59,15 @@
 - Done right：修复后目标用例重复 30 轮、`CGO_ENABLED=0 go test -tags dev,lite ./...` 和 `go vet -tags dev,lite ./...` 通过；Go overlay 隔离删去 close 事件记录后，用例按预期因只收到 `message:ping` 而失败。基线 `9b5ffd96cdd156cfd12b170a6df02eff5aa0f5f1` + 本次测试工作树，Linux amd64 / Go 1.26.0，日志 `/tmp/songloft-520-followup/parent-{ci-failed,websocket-repeat,websocket-fixed,websocket-negative,tests-fixed,vet-fixed}.log`。最终提交与 CI 另按对应 SHA 核对。
 - Seen 1× (2026-10-15)。状态：经验。
 
+### DOCS-001：自动侧栏必须固定扫描根并显式排除依赖目录
+
+- 范围：`docs/.vitepress/config.mts` 的自动侧栏及 LLM 文档索引。
+- 证据：2026-10-15，基线 `8252cb762e8363283a860c3a091748a0aadb4b02` 的 `path: '.'` 从仓库根启动时混入子模块与依赖，运行中的 `/@siteData` 返回 7,497,742 字节；从 `docs` 构建也会因 `node_modules` 未被默认排除产生 `No matching file found for sidebar link`。
+- 规则与修复：插件 1.7.0 用 `join(process.cwd(), path)`，不是 `resolve`，不能直接传绝对路径；用配置文件的 `import.meta.url` 定位 docs，再转为当前目录相对路径。递归仅使用显式 `ignoreList`，因此同时列出依赖、构建、静态资源及插件原有排除目录，不屏蔽告警。
+- Done right：根目录执行 `node docs/node_modules/vitepress/bin/vitepress.js build docs`，缺失侧栏链接警告归零；在 `docs` 启动 dev 后站点数据降至 95,743 字节。Docker Chrome 实际点击开发版及构建产物的中英文侧栏、语言链接和移动菜单，采集到的 66 个侧栏链接经 HTTP 均返回 200。证据：`/tmp/songloft-sidebar-WVrz5I/` 中的构建日志、运行时数据、浏览器记录及截图。
+- 边界：构建包体积警告仍存在；编辑配置触发插件热重启时遇到 MiniSearch 重复索引，冷启动验证正常，本次未修复热重启。Not run：单元测试和类型检查，本次采用构建及真实运行验证。
+- Seen 1× (2026-10-15)。状态：经验；扫描范围修复在本次未提交工作树。
+
 ## 条目格式
 
 ```text
