@@ -145,6 +145,10 @@ type JSService struct {
 	mu            sync.RWMutex
 	lastActive    time.Time // 最后活跃时间
 
+	// Load 在 s.mu 下登记缓存任务；Stop 等待整个编译及写盘结束后才销毁环境，
+	// 避免卸载/重载清缓存或关闭后删除数据目录时，后台任务仍在写入。
+	bytecodeCacheDone <-chan struct{}
+
 	// 定时器 goroutine 的停止信号。用独立的 timerMu 而不是 s.mu 保护：s.mu 被
 	// HandleMessage / Load 等长操作持有，而 armTimerStop / stopTimerProcessor 只做
 	// 几行字段读写，独立小锁既避免锁嵌套死锁，也不会被长操作拖住。
@@ -310,7 +314,10 @@ func (s *JSService) Load(pluginsDir, dataDir string) error {
 
 	// [11] 源码加载成功后，异步编译并缓存字节码
 	if !isBytecode {
+		cacheDone := make(chan struct{})
+		s.bytecodeCacheDone = cacheDone
 		go func() {
+			defer close(cacheDone)
 			bytecode, err := s.jsManager.CompileToBytecode(s.envID)
 			if err != nil {
 				slog.Warn("compile bytecode failed", "plugin", s.plugin.EntryPath, "error", err)
@@ -423,7 +430,13 @@ func (s *JSService) Stop() error {
 		s.mu.Unlock()
 		return nil
 	}
+	cacheDone := s.bytecodeCacheDone
 	s.mu.Unlock()
+
+	// 不持有 s.mu 等待，且必须早于 Deinit/销毁环境及调用方的目录清理。
+	if cacheDone != nil {
+		<-cacheDone
+	}
 
 	// 停止定时器 goroutine（在 Deinit 之前，避免 Deinit 期间定时器仍在跑）
 	s.stopTimerProcessor()
