@@ -77,6 +77,15 @@
 - 同日交互补证：`190c32c1768a88678edea3de5b1b94c40108c95d` 编排捕获 stdout，而 Lynx `0de993ff272ee29df96c8401b46df56256646438` 将计划/提示写到 stdout，空回车取消还退出 0，导致误跳过继续。旧实现下新增的 5 项 Lynx 流/取消回归和 9 项编排版本输出回归均失败；本次修复把 Lynx 提示移至 stderr、取消退出 1，并在编排端校验三个版本结果。主仓库 31 项脚本测试与 Lynx 81 项发布工具测试通过，PTY 在真实命令替换下验证回车中止与 yes 本地发布。日志 `/tmp/songloft-release-{all-before,lynx-before,parent-suite,lynx-suite}.log`、终端证据 `/tmp/songloft-release-terminal-result.json`；不增加同日 Seen。本次未运行真实发布。
 - Seen 1× (2026-10-15)。状态：经验。
 
+### RELEASE-002：更新日志必须以上一个已发布正式版为起点，不能只看 tag
+
+- 范围：主仓库 Release 工作流的变更范围、`CHANGELOG.md` 与 GitHub Release 说明。
+- 失败证据：2026-10-15，v2.13.2 的 [Release](https://github.com/songloft-org/songloft/actions/runs/38605138465) 在 Quality 失败后遗留 tag；v2.13.3 的 [成功发布](https://github.com/songloft-org/songloft/actions/runs/38693348336) 仍选择 v2.13.2 为起点，导致 v2.13.1..v2.13.2 的 66 条符合现有规则的提交全部漏记（另 5 条非规范提交被配置过滤）。代码已包含在 v2.13.3，遗漏发生在仓库日志与线上说明。
+- 规则与修复：本次工作树通过分页 Releases API，仅从非 draft、非 prerelease 且已有发布时间的三段版本中选择当前历史可达的最高版本，排除当前 tag 与 HEAD 同 SHA 的 tag；API 失败直接中止，仅无适用正式版时回退首提交。把遗漏补入 v2.13.3，比较范围修正为 v2.13.1...v2.13.3，不把失败的 v2.13.2 写成已发布版本。
+- Done right：基线 `c31806ad51483d7e3c67b6016ed3dd463ecef501` + 本次工作树，Linux amd64 / Node 22.17.1；7 项实际工作流步骤回归中旧实现失败 6 项，首项明确误选 v2.13.2；修复后 7 项及全套 38 项脚本测试通过，actionlint v1.7.12、Prettier 与 `git diff --check` 通过。真实只读查询对 v2.13.3 返回 v2.13.1，对 dev 返回 v2.13.3；提交集合核对确认 80 条、无重复、无遗漏。日志 `/tmp/songloft-changelog-{regression-before,regression-after,scripts,actionlint}.log`。
+- Not run：完整后端测试、平台打包及远端工作流运行，本次仅修改发布脚本与文档，工作树尚未提交/推送。
+- Seen 1× (2026-10-15)。状态：经验。
+
 ## 条目格式
 
 ```text

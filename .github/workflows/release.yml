@@ -42,7 +42,7 @@ env:
 
 jobs:
   # ============================================================
-  # Job 1: 解析版本号与发布类型，获取上一个 tag
+  # Job 1: 解析版本号与发布类型，获取上一个已发布的正式版
   # ============================================================
   prepare:
     name: Prepare
@@ -61,7 +61,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # 获取完整历史以查找上一个 tag
+          fetch-depth: 0 # 获取完整历史以核对已发布正式版的 tag
 
       # 发版时 `chore: release version X.Y.Z` commit 与 vX.Y.Z tag 指向同一 commit，
       # 一次 push 同时触发 main（dev 包）与 tag（正式版）两轮 release。此时 dev 包
@@ -126,36 +126,17 @@ jobs:
           echo "Git Commit: ${GIT_COMMIT}"
           echo "Release Title: ${RELEASE_TITLE}"
 
-      - name: Get previous tag
+      - name: Get previous published stable release
         id: prev-tag
         if: steps.gate.outputs.should_run == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CURRENT_TAG: ${{ steps.parse.outputs.version }}
         run: |
-          CURRENT_TAG="${{ steps.parse.outputs.version }}"
-          HEAD_SHA=$(git rev-parse HEAD)
-
-          if [[ "$CURRENT_TAG" == "dev" ]]; then
-            # dev 构建：排除指向 HEAD 同一 commit 的 tag，防止 fromTag==toTag 导致 changelog 为空报错
-            PREV_TAG=""
-            for tag in $(git --no-pager tag --sort=-creatordate --merged HEAD | grep '^v'); do
-              TAG_SHA=$(git rev-list -n1 "$tag")
-              if [[ "$TAG_SHA" != "$HEAD_SHA" ]]; then
-                PREV_TAG="$tag"
-                break
-              fi
-            done
-          else
-            # release 构建：按名称排除当前 tag
-            PREV_TAG=$(git --no-pager tag --sort=creatordate --merged HEAD | grep '^v' | grep -v "^${CURRENT_TAG}$" | tail -1)
-          fi
-
-          if [ -z "$PREV_TAG" ]; then
-            PREV_TAG=$(git rev-list --max-parents=0 HEAD)
-            echo "No previous tag found, using first commit: ${PREV_TAG}"
-          else
-            echo "Previous tag: ${PREV_TAG}"
-          fi
-
-          echo "previous_tag=${PREV_TAG}" >> $GITHUB_OUTPUT
+          # 失败构建遗留的 tag 不能作为起点，否则会漏掉该版本全部变更。
+          PREV_TAG=$(node scripts/previous-release.mjs "$CURRENT_TAG" "$RELEASE_REPO")
+          echo "Previous published stable release (or first commit): ${PREV_TAG}"
+          echo "previous_tag=${PREV_TAG}" >> "$GITHUB_OUTPUT"
 
   # ============================================================
   # 发布前质量闸门：固定为本轮 checkout 的 SHA，失败则构建/发布不继续。

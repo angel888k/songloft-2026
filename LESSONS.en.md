@@ -77,6 +77,15 @@ Both clients pass Chinese/English 390px browser checks for name order in both di
 - Same-day interaction evidence: the orchestrator at `190c32c1768a88678edea3de5b1b94c40108c95d` captures stdout, while Lynx `0de993ff272ee29df96c8401b46df56256646438` wrote plans/prompts there and returned 0 on Enter cancellation, allowing later steps to proceed. All 5 new Lynx stream/cancellation checks and 9 orchestrator version-output checks failed against the original implementations. This worktree moves Lynx prompts to stderr, returns 1 on cancellation, and validates all three returned versions. All 31 parent script tests and 81 Lynx release-tool tests pass; a PTY with actual command substitution verifies Enter cancellation and yes creating only a local release. Logs: `/tmp/songloft-release-{all-before,lynx-before,parent-suite,lynx-suite}.log`; terminal evidence: `/tmp/songloft-release-terminal-result.json`. Same-day Seen remains unchanged. No actual release was run in this task.
 - Seen 1× (2026-10-15). Status: lesson.
 
+### RELEASE-002: Base changelogs on the previous published stable release, not merely a tag
+
+- Scope: the parent Release workflow's comparison range, `CHANGELOG.md`, and GitHub Release notes.
+- Failure evidence: on 2026-10-15, v2.13.2's [Release](https://github.com/songloft-org/songloft/actions/runs/38605138465) failed Quality but left its tag. The [successful v2.13.3 release](https://github.com/songloft-org/songloft/actions/runs/38693348336) still selected v2.13.2 as its baseline, omitting all 66 eligible commits in v2.13.1..v2.13.2 (another 5 non-conventional commits were filtered by configuration). The code was already included in v2.13.3; the omissions affected the repository changelog and online notes.
+- Rule and fix: this worktree paginates the Releases API and selects the highest reachable three-component version that is published, non-draft, and non-prerelease, excluding the current tag and tags pointing to HEAD. API failures abort; only the absence of an eligible stable release permits falling back to the first commit. Restore the omissions under v2.13.3 and correct its comparison to v2.13.1...v2.13.3 without presenting the failed v2.13.2 as published.
+- Done right: baseline `c31806ad51483d7e3c67b6016ed3dd463ecef501` plus this worktree, Linux amd64 / Node 22.17.1. The original implementation fails 6 of 7 actual-workflow-step regressions, with the first explicitly selecting v2.13.2 incorrectly. The fix passes all 7 and the full 38 script tests, actionlint v1.7.12, Prettier, and `git diff --check`. Real read-only queries return v2.13.1 for v2.13.3 and v2.13.3 for dev. Commit-set comparison confirms exactly 80 entries without duplicates or omissions. Logs: `/tmp/songloft-changelog-{regression-before,regression-after,scripts,actionlint}.log`.
+- Not run: full backend tests, platform builds, and remote workflow execution; this task changes only release scripts and documentation, and the worktree remains uncommitted/unpushed.
+- Seen 1× (2026-10-15). Status: lesson.
+
 ## Entry Format
 
 ```text
