@@ -18,12 +18,16 @@ import (
 
 const webSocketDuringHTTPRequestJSCode = `
 var hostEvents = [];
+var activeSocket;
+var resolveHTTP;
 
 globalThis.onInit = async function() {};
 globalThis.onDeinit = async function() {};
 globalThis.onHTTPRequest = async function(req) {
     hostEvents = [];
-    await new Promise(function(resolve) { setTimeout(resolve, 500); });
+    var closed = new Promise(function(resolve) { resolveHTTP = resolve; });
+    await activeSocket.send("http-started");
+    await closed;
     return {
         statusCode: 200,
         headers: { "Content-Type": "application/json" },
@@ -31,6 +35,7 @@ globalThis.onHTTPRequest = async function(req) {
     };
 };
 globalThis.onWebSocket = async function(req, socket) {
+    activeSocket = socket;
     socket.onMessage(async function(event) {
         hostEvents.push("message:" + (event.isBinary ? "binary" : String(event.data)));
         if (!event.isBinary) {
@@ -39,7 +44,9 @@ globalThis.onWebSocket = async function(req, socket) {
     });
     socket.onClose(async function(event) {
         hostEvents.push("close:" + event.code + ":" + (event.reason || ""));
+        if (resolveHTTP) resolveHTTP();
     });
+    await socket.send("socket-ready");
 };
 `
 
@@ -99,6 +106,21 @@ func TestInboundWebSocketHostEventDeliveredDuringHTTPRequest(t *testing.T) {
 		t.Fatalf("dial websocket: %v", err)
 	}
 	defer conn.Close()
+	if err := conn.SetReadDeadline(time.Now().Add(5 * time.Second)); err != nil {
+		t.Fatalf("set websocket read deadline: %v", err)
+	}
+	expectMessage := func(want string) {
+		t.Helper()
+		messageType, payload, err := conn.ReadMessage()
+		if err != nil {
+			t.Fatalf("read %q: %v", want, err)
+		}
+		if messageType != websocket.TextMessage || string(payload) != want {
+			t.Fatalf("message = type %d payload %q, want text %q", messageType, string(payload), want)
+		}
+	}
+	// The upgrade completes before the JS open handler registers callbacks.
+	expectMessage("socket-ready")
 
 	type httpResult struct {
 		status int
@@ -106,8 +128,14 @@ func TestInboundWebSocketHostEventDeliveredDuringHTTPRequest(t *testing.T) {
 		err    error
 	}
 	resultCh := make(chan httpResult, 1)
+	requestCtx, cancelRequest := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancelRequest()
+	request, err := http.NewRequestWithContext(requestCtx, http.MethodGet, server.URL+"/api/v1/jsplugin/ws-during-http/api/scan", nil)
+	if err != nil {
+		t.Fatalf("create plugin request: %v", err)
+	}
 	go func() {
-		resp, err := http.Get(server.URL + "/api/v1/jsplugin/ws-during-http/api/scan")
+		resp, err := http.DefaultClient.Do(request)
 		if err != nil {
 			resultCh <- httpResult{err: err}
 			return
@@ -117,18 +145,14 @@ func TestInboundWebSocketHostEventDeliveredDuringHTTPRequest(t *testing.T) {
 		resultCh <- httpResult{status: resp.StatusCode, body: body, err: readErr}
 	}()
 
-	time.Sleep(100 * time.Millisecond)
+	// Wait for the HTTP handler to reset its event list and begin awaiting
+	// close. A fixed sleep can send ping before that reset and lose the events.
+	expectMessage("http-started")
 
 	if err := conn.WriteMessage(websocket.TextMessage, []byte("ping")); err != nil {
 		t.Fatalf("write text: %v", err)
 	}
-	messageType, payload, err := conn.ReadMessage()
-	if err != nil {
-		t.Fatalf("read text ack: %v", err)
-	}
-	if messageType != websocket.TextMessage || string(payload) != "ack:ping" {
-		t.Fatalf("ack = type %d payload %q, want text ack:ping", messageType, string(payload))
-	}
+	expectMessage("ack:ping")
 
 	if err := conn.WriteControl(
 		websocket.CloseMessage,

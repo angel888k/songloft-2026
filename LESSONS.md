@@ -41,6 +41,14 @@
 - 修复与验证（2026-10-15）：本次修复在 `JSService.Load` 持锁登记缓存完成信号，后台任务退出时关闭；`Stop` 在无锁等待整个编译及写盘完成后才执行生命周期清理，因此卸载、重载和管理器关闭也会等待。新增 `TestBytecodeCache_ShutdownWaitsForCompletion`，通过日志屏障阻塞真实缓存任务，覆盖 stop/unload/close；用 Go overlay 隔离加载旧 `service.go` 时三项均因提前返回失败，修复后三项通过。Linux amd64 / Go 1.26.0 / Node 22.17.1，基线 `3bbea95fa9eba7519eed1e4e000123923d78e3b4` + 本次工作树：`CGO_ENABLED=0 go vet -tags dev,lite ./...`、`CGO_ENABLED=0 go test -tags dev,lite ./...`、`node --test scripts/tests/*.test.mjs` 全通过；新回归与上述两项原失败测试重复 30 轮通过，同组 `CGO_ENABLED=1 go test -race -tags dev,lite` 通过。证据在 `/tmp/songloft-cache-{before,regression,repeat,all-tests,vet,scripts,race}.log`。Not run：各原生平台实机验证；本次未修改客户端或 API。
 - Seen 1× (2026-10-14)。状态：经验，本次提交修复缓存任务的停止等待；远端构建结果另行核对同一 SHA。
 
+### TEST-002：并发事件回归必须同步请求就绪与回调完成
+
+- 范围：Go / QuickJS 入站 WebSocket 与挂起 HTTP 请求的集成测试。
+- 失败：2026-10-15，songloft-org/songloft#520 的指针提交 `8252cb762e8363283a860c3a091748a0aadb4b02` 在 [CI 首轮](https://github.com/songloft-org/songloft/actions/runs/38670932842/attempts/1) 的 `TestInboundWebSocketHostEventDeliveredDuringHTTPRequest` 返回空事件列表；本批没有修改运行时代码。本地 `CGO_ENABLED=0 go test -tags dev,lite ./internal/jsplugin -run '^TestInboundWebSocketHostEventDeliveredDuringHTTPRequest$' -count=30` 也复现同一失败。测试用固定 100ms 推断 HTTP 已清空列表，再以 500ms 定时器返回，未同步真正的请求开始与 close 回调。
+- 规则与修复：使用 WebSocket `socket-ready` / `http-started` 消息建立先后顺序，HTTP Promise 由 close 回调记录事件后完成；Go 侧设置读与请求截止时间，只用于失败收敛，不把延时当同步。仅调整测试，未改运行时。
+- Done right：修复后目标用例重复 30 轮、`CGO_ENABLED=0 go test -tags dev,lite ./...` 和 `go vet -tags dev,lite ./...` 通过；Go overlay 隔离删去 close 事件记录后，用例按预期因只收到 `message:ping` 而失败。基线 `9b5ffd96cdd156cfd12b170a6df02eff5aa0f5f1` + 本次测试工作树，Linux amd64 / Go 1.26.0，日志 `/tmp/songloft-520-followup/parent-{ci-failed,websocket-repeat,websocket-fixed,websocket-negative,tests-fixed,vet-fixed}.log`。最终提交与 CI 另按对应 SHA 核对。
+- Seen 1× (2026-10-15)。状态：经验。
+
 ## 条目格式
 
 ```text
