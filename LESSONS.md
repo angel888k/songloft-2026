@@ -74,6 +74,7 @@
 - 规则：父仓库 bump 脚本要求干净工作树，因此两个子模块指针必须先用独立 commit 落地；gitlink commit 必须用 pathspec 限定（`git commit -m ... -- clients/player clients/player-lynx`），否则 staged/无关改动会被裹带。链式解析依赖「stdout 末行 = v<版本>、日志走 stderr」的固定契约。
 - 证据：2026-10-15，基线 `9d008b8`。旧版三个脚本参数与行为各异（Flutter tag 冲突可覆盖、父仓库无预检），无法安全编排；统一为 Lynx 严格契约后由 `scripts/tests/release-all.test.mjs` 夹具（本地 bare remote + stub）锁定顺序、脏树中止、失败即停、dry-run 零写入与 gitlink 隔离；`scripts/tests/bump-version.test.mjs` 覆盖预检与 `--no-push` 本地路径。Lynx 既有 `pnpm run test:release` 77 项通过。
 - Done right：真实仓库 `--dry-run` 验证三脚本计划输出与预检（脏子模块在调用任何发布脚本前被拦截）。推送 tag 触发各 CI 属发布动作，另行授权；本条不证明真实发布链路。
+- 同日交互补证：`190c32c1768a88678edea3de5b1b94c40108c95d` 编排捕获 stdout，而 Lynx `0de993ff272ee29df96c8401b46df56256646438` 将计划/提示写到 stdout，空回车取消还退出 0，导致误跳过继续。旧实现下新增的 5 项 Lynx 流/取消回归和 9 项编排版本输出回归均失败；本次修复把 Lynx 提示移至 stderr、取消退出 1，并在编排端校验三个版本结果。主仓库 31 项脚本测试与 Lynx 81 项发布工具测试通过，PTY 在真实命令替换下验证回车中止与 yes 本地发布。日志 `/tmp/songloft-release-{all-before,lynx-before,parent-suite,lynx-suite}.log`、终端证据 `/tmp/songloft-release-terminal-result.json`；不增加同日 Seen。本次未运行真实发布。
 - Seen 1× (2026-10-15)。状态：经验。
 
 ## 条目格式

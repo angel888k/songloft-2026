@@ -26,6 +26,8 @@ const stub = (label) => `#!/usr/bin/env bash
 set -euo pipefail
 echo "${label} $*" >> "$SONGLOFT_CALL_LOG"
 if [ -n "\${FAKE_FAIL_${label.toUpperCase()}:-}" ]; then echo "${label} preflight failed" >&2; exit 1; fi
+if [ -n "\${FAKE_CANCEL_${label.toUpperCase()}:-}" ]; then echo "${label} cancelled" >&2; exit 1; fi
+if [ -n "\${FAKE_INVALID_${label.toUpperCase()}:-}" ]; then printf '%s\\n' "$FAKE_VERSION_OUTPUT"; exit 0; fi
 for arg in "$@"; do [ "$arg" = "--dry-run" ] && { echo v9.9.9; exit 0; }; done
 if [ -n "\${FAKE_NO_MOVE:-}" ]; then echo v0.0.1; exit 0; fi
 printf '${label}-bump\\n' >> tracked.txt
@@ -38,6 +40,7 @@ echo v9.9.9
 const parentStub = `#!/usr/bin/env bash
 set -euo pipefail
 echo "parent $*" >> "$SONGLOFT_CALL_LOG"
+if [ -n "\${FAKE_INVALID_PARENT:-}" ]; then printf '%s\\n' "$FAKE_VERSION_OUTPUT"; exit 0; fi
 for arg in "$@"; do [ "$arg" = "--dry-run" ] && { echo v9.9.9; exit 0; }; done
 [ -z "$(git status --porcelain)" ] || { echo "parent stub: dirty tree" >&2; exit 1; }
 sed -i "s/^VERSION ?= .*/VERSION ?= 9.9.9/" Makefile
@@ -159,6 +162,39 @@ test("a failing step stops the sequence without committing gitlinks", (t) => {
   assert.deepEqual(f.calls(), ["flutter", "lynx"]);
   assert.equal(f.git("log", "-1", "--format=%s"), "test: add client submodules");
 });
+
+test("cancelling Lynx stops before gitlink and parent release", (t) => {
+  const f = fixture(t);
+  const before = f.git("rev-parse", "HEAD");
+  const result = f.run(["patch"], { FAKE_CANCEL_LYNX: "1" });
+  assert.equal(result.status, 1);
+  assert.deepEqual(f.calls(), ["flutter", "lynx"]);
+  assert.equal(f.git("rev-parse", "HEAD"), before);
+});
+
+for (const label of ["FLUTTER", "LYNX", "PARENT"]) {
+  for (const output of ["", "Release v9.9.9? [y/N]", "v01.2.3"]) {
+    test(`invalid ${label} version output ${JSON.stringify(output)} aborts the release`, (t) => {
+      const f = fixture(t);
+      const result = f.run(["patch", "--yes"], {
+        [`FAKE_INVALID_${label}`]: "1",
+        FAKE_VERSION_OUTPUT: output,
+      });
+      assert.equal(result.status, 1, result.stderr);
+      assert.match(result.stderr, /未返回有效版本号/);
+      assert.doesNotMatch(result.stderr, /=== 发布完成 ===/);
+      const expectedCalls = {
+        FLUTTER: ["flutter"],
+        LYNX: ["flutter", "lynx"],
+        PARENT: ["flutter", "lynx", "parent"],
+      };
+      assert.deepEqual(f.calls(), expectedCalls[label]);
+      if (label !== "PARENT") {
+        assert.equal(f.git("log", "-1", "--format=%s"), "test: add client submodules");
+      }
+    });
+  }
+}
 
 test("dry-run forwards the flag and leaves no commits", (t) => {
   const f = fixture(t);

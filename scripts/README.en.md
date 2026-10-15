@@ -55,6 +55,8 @@ The parent `scripts/bump-version.sh`, `clients/player/scripts/bump-version.sh`, 
 
 Ordering constraint: each client script commits + tags + pushes (triggering its own CI) → the parent records both gitlinks in a dedicated commit (pathspec-limited, never sweeping unrelated changes) → the parent bump script (which requires a clean tree, hence the gitlink commit must land first) pushes the backend tag. Stops on first failure; no rollback.
 
+Version plans and confirmation prompts appear immediately on stderr. Cancelling any repository's confirmation (including pressing Enter) stops the entire sequence instead of skipping that repository; completed steps remain in place. A child script that does not return a valid `v<version>` also stops the sequence.
+
 ### Parent-only release
 
 ```bash

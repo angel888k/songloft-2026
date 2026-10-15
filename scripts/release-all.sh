@@ -120,15 +120,21 @@ run_step() {
 
 capture_version() {
     # bump 脚本日志走 stderr，stdout 末行即 v<version>
-    printf '%s' "$1" | tail -n 1
+    local version
+    version=$(printf '%s' "$2" | tail -n 1)
+    if [[ ! "$version" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-([0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*))?$ ]]; then
+        log_err "$1 未返回有效版本号，停止后续发布"
+        return 1
+    fi
+    printf '%s\n' "$version"
 }
 
 flutter_out=$(cd "$FLUTTER_DIR" && ./scripts/bump-version.sh "$@")
-flutter_ver=$(capture_version "$flutter_out")
+flutter_ver=$(capture_version "Flutter 客户端" "$flutter_out")
 log_ok "Flutter 客户端: ${flutter_ver}"
 
 lynx_out=$(cd "$LYNX_DIR" && ./scripts/bump-version.sh "$@")
-lynx_ver=$(capture_version "$lynx_out")
+lynx_ver=$(capture_version "Lynx 客户端" "$lynx_out")
 log_ok "Lynx 客户端: ${lynx_ver}"
 
 # gitlink 提交（pathspec 限定，绝不裹带其他改动）
@@ -145,7 +151,7 @@ else
 fi
 
 parent_out=$("$PARENT_SCRIPT" "$@")
-parent_ver=$(capture_version "$parent_out")
+parent_ver=$(capture_version "父仓库后端" "$parent_out")
 log_ok "父仓库后端: ${parent_ver}"
 
 log_info ""
