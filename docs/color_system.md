@@ -78,6 +78,14 @@ Songloft 支持三种主题模式：
 
 主题切换通过 `ThemeSelector` 组件实现，状态由 `themeModeProvider` 管理。
 
+### 内置配色与歌词背景
+
+- 设置 → 外观提供星蓝、青碧、森绿、玫瑰、琥珀、紫藤六种内置配色，均支持浅色、深色与跟随系统。选择保存在当前设备，不参与服务器偏好同步。
+- 激活的服务器主题包优先于内置配色；恢复默认后重新使用设备保存的配色。
+- Flutter 手机与桌面全屏播放器统一从封面取色，混合到当前主题的 surface 上生成柔和渐变。封面缺失、加载中或失败时使用主题默认渐变；增强对比度时使用纯色 surface。
+- 歌词当前行、翻译、罗马音及逐字高亮共用前景颜色，按渐变背景将主题强调色向 onSurface 调整，目标对比度为 7:1；非当前行目标为 4.5:1。配色令牌在 `core/theme/built_in_palette.dart`，背景与歌词颜色计算在 `player_backdrop.dart`。
+- Lynx 使用相同的六种配色名称，保留 Apple 语义颜色体系；模糊封面上叠加有界亮暗遮罩，歌词独立前景同样以 7:1 / 4.5:1 为目标。封面加载中、缺失或失败时回到主题渐变，增强对比度或降低透明度时卸载封面并使用纯色背景。计算位于 `clients/player-lynx/src/shared/theme/player-colors.ts`；底栏 SVG 与插件 WebView 的主题消息同步当前配色。
+
 ### 字体配置
 
 ```dart
@@ -158,7 +166,7 @@ Container(
 
 1. **seedColor 被替换**：从主题包的 `light.seedColor` / `dark.seedColor` 生成新的完整调色板
 2. **surface/background 可覆盖**：如果主题包指定了 `backgroundColor` 或 `surfaceColor`，会 `copyWith` 覆盖自动生成的值
-3. **播放器渐变叠加**：`playerGradient` 定义的颜色以 40% 透明度叠加在封面动态取色之上
+3. **播放器默认渐变**：封面不可用时以 `playerGradient` 首尾色为取色来源，混合到当前 surface；有封面时优先使用封面取色
 4. **圆角半径**：`cardRadius`、`controlRadius`、`navigationRadius` 注入到组件主题中
 5. **Liquid Glass 色调**：`glassColor` 作为 glassBase 派生 `glassGlow` / `glassGlowFaint` / `glassSheen`；亮暗色可分别指定
 6. **导航栏样式**：`navigationStyle` 控制导航栏外观——`'standard'`（默认指示器）或 `'capsule'`（胶囊栏）

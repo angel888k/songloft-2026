@@ -79,7 +79,7 @@ Light mode typically uses a more saturated, deeper seed color; dark mode uses a 
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `playerGradient` | string[] | No | Full-screen player background gradient, array of 2 `#RRGGBB` colors, top-to-bottom. Layered above cover art color extraction at 40% opacity |
+| `playerGradient` | string[] | No | Default full-screen player gradient colors when cover colors are unavailable: two `#RRGGBB` values blended into the current theme surface. Available cover colors take precedence |
 
 ### Border Radii
 
@@ -155,7 +155,7 @@ A single `seedColor` is all you need. `backgroundColor`, `surfaceColor`, `player
 - **Seed color**: Pick a hue that represents your theme's mood — Material 3 handles saturation and lightness automatically
 - **Light vs dark**: Dark mode seedColor should be brighter than light mode, otherwise the primary color won't be prominent enough
 - **Override cautiously**: Only override `backgroundColor`/`surfaceColor` when M3's auto-generated colors don't match your design intent. In most cases, seedColor alone works great
-- **Gradient colors**: Use dark, same-hue colors for `playerGradient` — they're layered at 40% opacity over the cover art's extracted colors
+- **Gradient colors**: Choose two harmonious colors for `playerGradient`. When cover colors are unavailable, the player blends these into the current theme surface for light and dark modes; increased contrast uses a solid surface
 
 ### ID Naming
 

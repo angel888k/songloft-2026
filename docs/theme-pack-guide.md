@@ -79,7 +79,7 @@ Songloft 使用 Flutter 的 `ColorScheme.fromSeed()` 方法，从 seedColor 自�
 
 | 字段 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| `playerGradient` | string[] | 否 | 全屏播放器背景渐变色数组，2 个 `#RRGGBB` 颜色值，从上到下渐变。叠加在封面动态取色之上（alpha 0.4）|
+| `playerGradient` | string[] | 否 | 全屏播放器无可用封面时的默认渐变取色，2 个 `#RRGGBB` 颜色值。首尾色混合到当前主题 surface；有封面时优先随封面变化|
 
 ### 圆角半径
 
@@ -155,7 +155,7 @@ Songloft 使用 Flutter 的 `ColorScheme.fromSeed()` 方法，从 seedColor 自�
 - **种子色选择**：选一个能代表主题风格的色相即可，Material 3 会自动处理饱和度和明度变化
 - **亮暗分离**：暗色模式的 seedColor 应比亮色模式更亮，否则暗色模式下 primary 色可能不够醒目
 - **背景色谨慎覆盖**：只有在 M3 自动生成的背景色不符合你的设计意图时才需要覆盖。大多数情况下只设置 seedColor 效果就很好
-- **渐变色搭配**：`playerGradient` 的两个颜色建议选同色系的深色（暗色），因为会以 40% 透明度叠加在封面取色之上
+- **渐变色搭配**：`playerGradient` 建议选协调的两个颜色。无可用封面时，播放器将其混合到当前主题 surface，分别适配浅色与深色；增强对比度时回到纯色 surface
 
 ### ID 命名
 

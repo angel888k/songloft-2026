@@ -78,6 +78,14 @@ Songloft supports three theme modes:
 
 Theme switching is implemented through the `ThemeSelector` component, with state managed by `themeModeProvider`.
 
+### Built-in Colors and Lyric Backgrounds
+
+- Settings → Appearance offers six built-in palettes: Blue, Teal, Forest, Rose, Amber, and Violet. Each supports light, dark, and system modes. The choice is stored on the current device, outside server preference synchronization.
+- An active server theme pack takes precedence. Restoring the default resumes the palette saved on the device.
+- Flutter mobile and desktop full players share a soft gradient made by blending cover colors into the current theme surface. Missing, loading, or failed covers use the theme gradient; increased contrast uses a solid surface.
+- Active lyrics, translations, romaji, and karaoke highlights share a foreground color, adjusting the theme accent toward onSurface for a target contrast of 7:1 against the gradient. Other lines target 4.5:1. Palette tokens live in `core/theme/built_in_palette.dart`; background and lyric colors are calculated in `player_backdrop.dart`.
+- Lynx uses the same six palette names within its Apple semantic color system. A bounded light/dark scrim covers blurred artwork, with independent lyric foregrounds targeting 7:1 / 4.5:1. Loading, missing, or failed covers use the theme gradient; increased contrast or reduced transparency unmounts the cover and uses a solid background. Calculations live in `clients/player-lynx/src/shared/theme/player-colors.ts`; navigation SVGs and plugin WebView theme messages follow the current palette.
+
 ### Font Configuration
 
 ```dart
@@ -158,7 +166,7 @@ When a user activates a theme pack:
 
 1. **seedColor is replaced**: A new full palette is generated from the theme pack’s `light.seedColor` / `dark.seedColor`
 2. **surface/background can be overridden**: If the theme pack specifies `backgroundColor` or `surfaceColor`, they `copyWith` override the auto-generated values
-3. **Player gradient overlay**: Colors defined by `playerGradient` are overlaid on the cover art’s dynamic colors at 40% opacity
+3. **Default player gradient**: When cover colors are unavailable, the first and last `playerGradient` colors are blended into the current surface; cover colors take precedence when available
 4. **Border radii**: `cardRadius`, `controlRadius`, `navigationRadius` are injected into component themes
 5. **Liquid Glass tint**: `glassColor` serves as glassBase to derive `glassGlow` / `glassGlowFaint` / `glassSheen`; light and dark can specify different values
 6. **Navigation bar style**: `navigationStyle` controls the navigation bar appearance — `'standard'` (default indicator) or `'capsule'` (capsule bar)
